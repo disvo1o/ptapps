@@ -1,5 +1,6 @@
+import { russianMessage } from './russian.js';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 export class Store {
@@ -15,7 +16,17 @@ export class Store {
   get<T=any>(sql:string,...args:SQLInputValue[]):T | undefined { return this.db.prepare(sql).get(...args) as T | undefined; }
   all<T=any>(sql:string,...args:SQLInputValue[]):T[] { return this.db.prepare(sql).all(...args) as T[]; }
   tx<T>(fn:()=>T):T { this.db.exec('BEGIN IMMEDIATE'); try { const result=fn();this.db.exec('COMMIT');return result; } catch(e){this.db.exec('ROLLBACK');throw e;} }
-  migrate(){this.db.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)');if(!this.get('SELECT version FROM schema_migrations WHERE version=?','001'))this.tx(()=>{this.db.exec(readFileSync(new URL('../../../database/migrations/001_initial.sql',import.meta.url),'utf8'));this.run('INSERT INTO schema_migrations VALUES (?,?)','001',now());});}
+  migrate(){
+    this.db.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)');
+    const directory=new URL('../../../database/migrations/',import.meta.url);
+    for(const file of readdirSync(directory).filter(f=>/^\d+_.+\.sql$/.test(f)).sort()){
+      const version=file.split('_')[0];
+      if(!this.get('SELECT version FROM schema_migrations WHERE version=?',version))this.tx(()=>{
+        this.db.exec(readFileSync(new URL(file,directory),'utf8'));
+        this.run('INSERT INTO schema_migrations VALUES (?,?)',version,now());
+      });
+    }
+  }
   close(){this.db.close();}
 }
 export const id=()=>randomUUID();
@@ -23,4 +34,4 @@ export const now=()=>new Date().toISOString();
 export const fail=(message:string,statusCode=400):never=>{throw Object.assign(new Error(message),{statusCode});};
 export function requireRow<T>(row:T,message='Not found'):NonNullable<T> { if(!row)fail(message,404); return row as NonNullable<T>; }
 export function audit(db:Store,actor:string|null,action:string,entity:string|null,detail:unknown){db.run('INSERT INTO admin_logs VALUES (?,?,?,?,?,?)',id(),actor,action,entity,JSON.stringify(detail),now());}
-export function notify(db:Store,user:string,type:string,message:string){db.run('INSERT INTO notifications(id,user_id,type,message,created_at) VALUES (?,?,?,?,?)',id(),user,type,message,now());}
+export function notify(db:Store,user:string,type:string,message:string){db.run('INSERT INTO notifications(id,user_id,type,message,created_at) VALUES (?,?,?,?,?)',id(),user,type,russianMessage(message),now());}
