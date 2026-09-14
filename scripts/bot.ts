@@ -1,0 +1,5 @@
+import 'dotenv/config';
+const token=process.env.TELEGRAM_BOT_TOKEN;const url=process.env.TELEGRAM_WEBAPP_URL;if(!token)throw new Error('Set TELEGRAM_BOT_TOKEN before starting the bot');let offset=0;
+async function call(method:string,body:Record<string,unknown>){const r=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error(`Telegram ${method} failed: ${r.status}`);return r.json() as Promise<any>}
+await call('setMyCommands',{commands:[{command:'start',description:'Open PING'}]});console.log('PING bot adapter listening');
+while(true){const updates=await call('getUpdates',{offset,timeout:25,allowed_updates:['message']});for(const update of updates.result||[]){offset=update.update_id+1;const chat=update.message?.chat?.id;if(chat&&update.message?.text?.startsWith('/start'))await call('sendMessage',{chat_id:chat,text:'Welcome to PING — PLAY. WIN. COLLECT.',reply_markup:{inline_keyboard:[[{text:'OPEN PING',web_app:{url}}]]}});}}

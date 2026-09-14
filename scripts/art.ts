@@ -1,0 +1,10 @@
+import { writeFileSync } from 'node:fs';
+const colors=['#c7f54a','#a9a1ff','#ff906d','#74d6ca','#f4c653','#b4d5fa'];
+for(let i=1;i<=100;i++){
+ const c=colors[Math.floor((i-1)/17)%6];let icon='';const t=(i-1)%10;
+ if([0,4,6].includes(t))icon='<g transform="rotate(-32 120 120)"><rect x="105" y="133" width="30" height="72" rx="10" fill="#e6b88c" stroke="#20251e" stroke-width="7"/><ellipse cx="120" cy="91" rx="64" ry="70" fill="'+c+'" stroke="#20251e" stroke-width="8"/><path d="M70 109 Q120 130 170 109" fill="none" stroke="#20251e" stroke-width="8"/><path d="M95 68h4m40 0h4" stroke="#20251e" stroke-width="10" stroke-linecap="round"/></g>';
+ else if([1,5,9].includes(t))icon='<path d="M58 170V92a62 62 0 0 1 124 0v78l-23-16-22 16-22-16-22 16-18-16z" fill="'+c+'" stroke="#20251e" stroke-width="8" stroke-linejoin="round"/><ellipse cx="100" cy="96" rx="9" ry="14" fill="#20251e"/><ellipse cx="144" cy="96" rx="9" ry="14" fill="#20251e"/><path d="M108 126q13 14 27 0" fill="none" stroke="#20251e" stroke-width="6" stroke-linecap="round"/>';
+ else if([2,8].includes(t))icon='<path d="M132 25 65 127h48l-10 86 77-118h-51z" fill="'+c+'" stroke="#20251e" stroke-width="8" stroke-linejoin="round"/><path d="m48 78-15-8m155 95 16 9m-17-132 12-13" stroke="'+c+'" stroke-width="8" stroke-linecap="round"/>';
+ else icon='<path d="m53 68 34 26 33-51 33 51 34-26-17 102H70z" fill="'+c+'" stroke="#20251e" stroke-width="8" stroke-linejoin="round"/><path d="M75 185h90" stroke="#20251e" stroke-width="9" stroke-linecap="round"/><circle cx="120" cy="130" r="12" fill="#fff7dc" stroke="#20251e" stroke-width="6"/>';
+ writeFileSync(`apps/web/public/stickers/${i}.svg`,`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="${c}" opacity=".3"/></pattern></defs><rect width="240" height="240" rx="32" fill="${c}" fill-opacity=".09"/><rect width="240" height="240" rx="32" fill="url(#dots)"/><g transform="rotate(${(i%5-2)*4} 120 120)">${icon}</g><circle cx="190" cy="43" r="12" fill="#fffae8" stroke="#20251e" stroke-width="4"/></svg>`);
+}
