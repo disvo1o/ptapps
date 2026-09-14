@@ -12,3 +12,23 @@ describe('account migration and owner identity',()=>{
  it('pins the superadmin to the verified Telegram ID',async()=>{const db=database();db.migrate();const old=process.env.TELEGRAM_BOT_TOKEN;process.env.TELEGRAM_BOT_TOKEN='test-token-with-no-real-service';const app=await createApp(db,{mock:true});try{const login=async(id:number,username:string)=>app.inject({method:'POST',url:'/api/auth/telegram',payload:{initData:sign({id,username,first_name:'Тест'},process.env.TELEGRAM_BOT_TOKEN!)}});expect((await login(123,'disvolo')).statusCode).toBe(200);expect(db.get("SELECT role FROM users WHERE telegram_id='123'").role).toBe('ADMIN');expect(db.get("SELECT value FROM config WHERE key='superadmin_telegram_id'").value).toBe('123');expect((await login(123,'renamed')).statusCode).toBe(200);expect((await login(456,'disvolo')).statusCode).toBe(200);expect(db.get("SELECT role FROM users WHERE telegram_id='456'").role).toBe('PLAYER');expect(db.get("SELECT rating FROM ratings JOIN users ON users.id=ratings.user_id WHERE telegram_id='456'").rating).toBe(100);}finally{await app.close();if(old===undefined)delete process.env.TELEGRAM_BOT_TOKEN;else process.env.TELEGRAM_BOT_TOKEN=old;}});
  it('translates historical notifications',()=>{expect(russianMessage('Victory · +20 rating · +30 PP')).toBe('Победа · +20 рейтинга · +30 пинг поинтов');expect(russianMessage('Клубный турнир finished · +100 PP')).toBe('Клубный турнир завершён · +100 пинг поинтов');});
 });
+
+it('keeps verified Telegram sessions working when the webview drops cookies',async()=>{
+ const db=database();db.migrate();const old=process.env.TELEGRAM_BOT_TOKEN;process.env.TELEGRAM_BOT_TOKEN='test-token-with-no-real-service';const app=await createApp(db,{mock:false});
+ try{
+  const login=await app.inject({method:'POST',url:'/api/auth/telegram',payload:{initData:sign({id:789,username:'cookie_test',first_name:'Тест'},process.env.TELEGRAM_BOT_TOKEN!)}});
+  expect(login.statusCode).toBe(200);const token=login.json().token;
+  expect(typeof token).toBe('string');
+  expect((await app.inject({url:'/api/me'})).statusCode).toBe(401);
+  const me=await app.inject({url:'/api/me',headers:{authorization:`Bearer ${token}`}});
+  expect(me.statusCode).toBe(200);expect(me.json().username).toBe('cookie_test');
+  expect((await app.inject({url:'/api/me',cookies:{ping_session:login.cookies[0].value}})).statusCode).toBe(200);
+  expect((await app.inject({url:'/api/me',headers:{authorization:'Bearer invalid'}})).statusCode).toBe(401);
+  expect((await app.inject({url:'/api/admin/overview',headers:{authorization:`Bearer ${token}`}})).statusCode).toBe(403);
+  const uid=db.get("SELECT id FROM users WHERE telegram_id='789'").id;
+  const expired=app.jwt.sign({sub:uid},{expiresIn:-1});
+  expect((await app.inject({url:'/api/me',headers:{authorization:`Bearer ${expired}`}})).statusCode).toBe(401);
+  db.run('UPDATE users SET banned=1 WHERE id=?',uid);
+  expect((await app.inject({url:'/api/me',headers:{authorization:`Bearer ${token}`}})).statusCode).toBe(403);
+ }finally{await app.close();if(old===undefined)delete process.env.TELEGRAM_BOT_TOKEN;else process.env.TELEGRAM_BOT_TOKEN=old;}
+});

@@ -33,7 +33,7 @@ export function authRoutes(app:FastifyInstance,db:Store,mock:boolean){
       });
     }else{if(!mock)fail('Открой пинг таблет внутри Telegram, чтобы войти',401);userId=input.demoId||'alex';if(!db.get("SELECT id FROM users WHERE id=? AND telegram_id LIKE 'demo-%'",userId))fail('Демо-игрок не найден',404);}
     if(db.get('SELECT banned FROM users WHERE id=?',userId)?.banned)fail('Этот аккаунт заблокирован',403);
-    const token=app.jwt.sign({sub:userId},{expiresIn:'12h'});reply.setCookie('ping_session',token,{httpOnly:true,sameSite:'strict',secure:process.env.APP_ENV==='production',path:'/',maxAge:43200});return {ok:true};
+    const token=app.jwt.sign({sub:userId},{expiresIn:'12h'});reply.setCookie('ping_session',token,{httpOnly:true,sameSite:'strict',secure:process.env.APP_ENV==='production',path:'/',maxAge:43200});return {ok:true,token};
   });
   app.post('/api/auth/logout',async(_req,reply)=>{reply.clearCookie('ping_session',{path:'/'});return {ok:true};});
   app.get('/api/auth/demo-users',async()=>{if(!mock)fail('Not found',404);return db.all("SELECT u.id,p.display_name,u.role FROM users u JOIN profiles p ON p.user_id=u.id WHERE telegram_id LIKE 'demo-%' ORDER BY u.id='alex' DESC,p.display_name");});

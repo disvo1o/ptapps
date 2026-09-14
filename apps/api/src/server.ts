@@ -22,7 +22,7 @@ export async function createApp(db:Store,options:{mock?:boolean;logger?:boolean}
  });
  app.addHook('preHandler',async req=>{
    if(!req.url.startsWith('/api/')||req.url.startsWith('/api/auth/')||req.url==='/api/health')return;
-   try{await req.jwtVerify({onlyCookie:true});}catch{fail('Открой приложение заново, чтобы войти',401);}
+   try{await req.jwtVerify({onlyCookie:!req.headers.authorization});}catch{fail('Открой приложение заново, чтобы войти',401);}
    const u=db.get('SELECT id,banned FROM users WHERE id=?',current(req));if(!u)fail('Открой приложение заново, чтобы войти',401);if(u.banned)fail('Аккаунт заблокирован',403);
  });
  app.setErrorHandler((err,req,reply)=>{if(err instanceof ZodError)return reply.code(400).send({error:'Проверь заполненные поля: обязательные значения, формат и допустимые ограничения.'});const e=err as Error & {statusCode?:number};const status=e.statusCode&&e.statusCode>=400&&e.statusCode<500?e.statusCode:500;if(status===500)req.log.error(err);return reply.code(status).send({error:status===500?'Не удалось выполнить действие. Попробуй ещё раз.':e.message});});
