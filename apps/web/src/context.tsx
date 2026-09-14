@@ -10,8 +10,8 @@ export function AppProvider({children}:{children:ReactNode}){
  const refresh=useCallback(async()=>{setMe(await api('/me'));setVersion(v=>v+1);},[]);
  useEffect(()=>{let active=true;(async()=>{const settings=await api('/auth/config');if(!active)return;setMock(settings.mock);const app=tg();await post('/auth/telegram',app?.initData?{initData:app.initData}:{});if(active)setMe(await api('/me'));app?.ready();app?.expand();})().catch(e=>active&&setError(e.message));return()=>{active=false;};},[retry]);
  useEffect(()=>{if(!message)return;const timer=setTimeout(()=>setMessage(''),4500);return()=>clearTimeout(timer);},[message]);
- async function switchUser(id:string){await post('/auth/telegram',{demoId:id});await refresh();setMessage('Demo account switched');}
- if(error&&!me)return <div className="boot"><div className="wordmark">PING<span>●</span></div><ErrorView message={error} retry={()=>{setError('');setRetry(v=>v+1);}}/></div>;
- if(!me)return <div className="boot"><div className="wordmark">PING<span>●</span></div><p>Getting your game ready…</p><Skeleton/></div>;
+ async function switchUser(id:string){await post('/auth/telegram',{demoId:id});await refresh();setMessage('Демо-игрок изменён');}
+ if(error&&!me)return <div className="boot"><div className="wordmark">пинг таблет<span>●</span></div><ErrorView message={error} retry={()=>{setError('');setRetry(v=>v+1);}}/></div>;
+ if(!me)return <div className="boot"><div className="wordmark">пинг таблет<span>●</span></div><p>Готовим твою подачу…</p><Skeleton/></div>;
  return <Context.Provider value={{me,version,refresh,mock,switchUser,toast:m=>{setMessage(m);haptic();}}}>{children}{message&&<div className="toast" role="status">{message}</div>}</Context.Provider>;
 }

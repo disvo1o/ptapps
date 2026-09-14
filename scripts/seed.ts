@@ -7,7 +7,7 @@ const names=['Alex Morgan','Max Chen','Luna Park','Oliver Reed','Sofia Costa','N
 const uid=(n:number)=>n===0?'alex':n===1?'max':n===29?'admin':`player-${n+1}`;
 export function seed(db:Store,demo=true){
  db.tx(()=>{
- if(!db.get('SELECT id FROM seasons LIMIT 1'))db.run('INSERT INTO seasons VALUES (?,?,?,?,?)','season-01','Season 01 · First Serve','2026-09-01T00:00:00.000Z','2027-01-01T00:00:00.000Z','CURRENT');
+ if(!db.get('SELECT id FROM seasons LIMIT 1'))db.run('INSERT INTO seasons VALUES (?,?,?,?,?)','season-01','сезон 01 · первая подача','2026-09-01T00:00:00.000Z','2027-01-01T00:00:00.000Z','CURRENT');
  const themes=['Fire Serve','Moon Shot','Spin Doctor','Lucky Rally','Golden Paddle','Ghost Spin','Court King','Match Point','Neon Smash','Cloud Nine'];
  for(let i=0;i<100;i++){const rarity=i<40?'COMMON':i<65?'UNCOMMON':i<82?'RARE':i<93?'EPIC':i<99?'LEGENDARY':'MYTHIC';db.run("INSERT OR IGNORE INTO stickers(id,name,description,image_url,rarity,season,type,created_at) VALUES (?,?,?,?,?,?,'COLLECTION',?)",`sticker-${String(i+1).padStart(3,'0')}`,`${themes[i%10]} ${['I','II','III','IV','V','VI','VII','VIII','IX','X'][Math.floor(i/10)]}`,'A little court magic. Part of the First Serve collection.',`/stickers/${i+1}.svg`,rarity,'season-01',now());}
  for(const p of [['basic','Basic',100,{COMMON:70,UNCOMMON:22,RARE:7,EPIC:1}],['pro','Pro',300,{COMMON:40,UNCOMMON:30,RARE:20,EPIC:9,LEGENDARY:1}],['legendary','Legendary',1000,{COMMON:10,UNCOMMON:20,RARE:30,EPIC:25,LEGENDARY:14,MYTHIC:1}]] as const)db.run('INSERT OR IGNORE INTO packs VALUES (?,?,?,?,1)',p[0],p[1],p[2],JSON.stringify(p[3]));
@@ -20,7 +20,7 @@ export function seed(db:Store,demo=true){
    db.run('INSERT INTO users VALUES (?,?,?,?,0,?)',user,`demo-user-${i+1}`,names[i].toLowerCase().replace(/ /g,'.'),i===29?'ADMIN':i===0||i===1?'ORGANIZER':'PLAYER',now());
    db.run('INSERT INTO profiles VALUES (?,?,?,?,?,?,?,?)',user,names[i],String(i),null,i%4===0||i<2?'Amsterdam':['Berlin','London','Paris'][i%3],i%4===0||i<2?'NL':'EU',i===0?'Here for the rallies. Staying for the rivalries.':'One more game?',now());
    db.run('INSERT INTO ratings(user_id,rating,highest_rating) VALUES (?,?,?)',user,rating,rating+72);
-   db.run("INSERT INTO stickers VALUES (?,?,?,?,?,?,'BATTLE',?,?)",`battle-${user}`,`${names[i].split(' ')[0]}’s Signature`,'A Battle Sticker earned by defeating this player. Collection stickers are never lost.',`/stickers/${(i*3)%100+1}.svg`,'RARE','season-01',user,now());awardSticker(db,user,`battle-${user}`);
+   db.run("INSERT INTO stickers VALUES (?,?,?,?,?,?,'BATTLE',?,?)",`battle-${user}`,`${names[i].split(' ')[0]} — боевой автограф`,'Боевой стикер за победу над этим игроком. Коллекционные стикеры не теряются.',`/stickers/${(i*3)%100+1}.svg`,'RARE','season-01',user,now());awardSticker(db,user,`battle-${user}`);
    const count=i===0?42:8+(i*7)%76;for(let j=0;j<count;j++)awardSticker(db,user,`sticker-${String((j*7+i*3)%100+1).padStart(3,'0')}`);
  }
  // Historical demo games are real relational records; standings derive from their outcomes.
@@ -47,8 +47,8 @@ export function seed(db:Store,demo=true){
    db.run("INSERT INTO tournaments(id,title,description,organizer_id,location,start_at,registration_deadline,max_players,format,status,qr_token,season_id,created_at) VALUES (?,?,?,?,?,?,?,?,'SINGLE_ELIMINATION','OPEN',?,?,?)",tid,title,'Good people. Great rallies. Bring your best game. All levels welcome.','max',loc,new Date(Date.now()+(days+1)*86400000).toISOString(),new Date(Date.now()+(days+0.9)*86400000).toISOString(),max,qrToken(),'season-01',now());
    for(let p=start;p<start+count;p++)db.run('INSERT INTO tournament_players VALUES (?,?,?)',tid,uid(p),now());
  }
- notify(db,'alex','WELCOME','Welcome to First Serve. Your next great rally starts here.');audit(db,'admin','DEMO_SEED',null,{users:30,collectibles:100});
+ notify(db,'alex','WELCOME','Добро пожаловать в первую подачу. Твоя следующая отличная партия уже близко.');audit(db,'admin','DEMO_SEED',null,{users:30,collectibles:100});
  });
  startTournament(db,'max','city-cup');
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){if(process.env.APP_ENV==='production'&&!process.argv.includes('--catalog-only'))throw new Error('Use --catalog-only in production');const db=new Store();db.migrate();seed(db,!process.argv.includes('--catalog-only'));db.close();console.log('PING database seeded.');}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){if(process.env.APP_ENV==='production'&&!process.argv.includes('--catalog-only'))throw new Error('Use --catalog-only in production');const db=new Store();db.migrate();seed(db,!process.argv.includes('--catalog-only'));db.close();console.log('База пинг таблет заполнена.');}

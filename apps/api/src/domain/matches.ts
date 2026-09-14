@@ -6,7 +6,7 @@ export function submitMatch(db:Store,user:string,opponent:string,a:number,b:numb
   validateScore(a,b);if(user===opponent)fail('Choose another player');
   if(!db.get('SELECT id FROM users WHERE id=? AND banned=0',opponent))fail('Player not found',404);
   const previous=db.get('SELECT * FROM matches WHERE request_key=?',`${user}:${key}`);if(previous){if(previous.player_b!==opponent||previous.score_a!==a||previous.score_b!==b)fail('Request key already used',409);return previous;}
-  if(db.get("SELECT id FROM matches WHERE status='PENDING' AND ((player_a=? AND player_b=?) OR (player_a=? AND player_b=?))",user,opponent,opponent,user))fail('You already have a pending match with this player',409);
+  if(db.get("SELECT id FROM matches WHERE status='PENDING' AND ((player_a=? AND player_b=?) OR (player_a=? AND player_b=?))",user,opponent,opponent,user))fail('У тебя уже есть неподтверждённый матч с этим игроком',409);
   const match=id();db.run("INSERT INTO matches(id,player_a,player_b,score_a,score_b,status,created_at,request_key) VALUES (?,?,?,?,?,'PENDING',?,?)",match,user,opponent,a,b,now(),`${user}:${key}`);
   notify(db,opponent,'MATCH_PENDING','A match result is waiting for your confirmation');return db.get('SELECT * FROM matches WHERE id=?',match);
 });}
@@ -28,7 +28,7 @@ export function settleMatch(db:Store,matchId:string){
   }
   if(rewardEligible){
     const signature=db.get("SELECT id FROM stickers WHERE type='BATTLE' AND owner_id=?",loser);
-    if(signature){const held=db.get('SELECT quantity FROM user_stickers WHERE user_id=? AND sticker_id=?',loser,signature.id);if(held?.quantity>0)db.run('UPDATE user_stickers SET quantity=quantity-1 WHERE user_id=? AND sticker_id=?',loser,signature.id);awardSticker(db,winner,signature.id);notify(db,winner,'STICKER_RECEIVED','You earned an opponent’s Battle Signature');}
+    if(signature){const held=db.get('SELECT quantity FROM user_stickers WHERE user_id=? AND sticker_id=?',loser,signature.id);if(held?.quantity>0)db.run('UPDATE user_stickers SET quantity=quantity-1 WHERE user_id=? AND sticker_id=?',loser,signature.id);awardSticker(db,winner,signature.id);notify(db,winner,'STICKER_RECEIVED','Ты получил боевой стикер соперника');}
   }else audit(db,null,'REWARD_LIMIT',m.id,{players:[m.player_a,m.player_b],reason:pairRecent?'pair cooldown':'daily cap'});
   db.run("UPDATE matches SET status='CONFIRMED',winner=?,loser=?,confirmed_at=?,rating_change_a=?,rating_change_b=?,reward_eligible=? WHERE id=?",winner,loser,now(),Math.max(0,a.rating+deltaA)-a.rating,Math.max(0,b.rating+deltaB)-b.rating,rewardEligible?1:0,m.id);
   return db.get('SELECT * FROM matches WHERE id=?',m.id);
