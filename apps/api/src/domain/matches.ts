@@ -13,7 +13,7 @@ export function submitMatch(db:Store,user:string,opponent:string,a:number,b:numb
 });}
 // Called only inside the enclosing confirmation / tournament transaction.
 export function settleMatch(db:Store,matchId:string){
-  const m=requireRow(db.get('SELECT * FROM matches WHERE id=?',matchId));if(m.status==='CONFIRMED')return m;if(m.status!=='PENDING')fail('Этот результат нельзя подтвердить',409);if(db.get('SELECT id FROM users WHERE id IN (?,?) AND banned=1',m.player_a,m.player_b))fail('Игрок заблокирован',409);
+  const m=requireRow(db.get('SELECT * FROM matches WHERE id=?',matchId));if(m.status==='CONFIRMED')return m;if(m.status!=='PENDING')fail('Этот результат нельзя подтвердить',409);const guestMatch=!!db.get('SELECT 1 FROM player_preferences WHERE is_guest=1 AND user_id IN (?,?)',m.player_a,m.player_b);if(guestMatch){const winner=m.score_a>m.score_b?m.player_a:m.player_b,loser=winner===m.player_a?m.player_b:m.player_a;db.run("UPDATE matches SET status='CONFIRMED',winner=?,loser=?,confirmed_at=?,rating_change_a=0,rating_change_b=0,reward_eligible=0 WHERE id=?",winner,loser,now(),m.id);return db.get('SELECT * FROM matches WHERE id=?',m.id);}if(db.get('SELECT id FROM users WHERE id IN (?,?) AND banned=1',m.player_a,m.player_b))fail('Игрок заблокирован',409);
   const a=db.get('SELECT * FROM ratings WHERE user_id=?',m.player_a),b=db.get('SELECT * FROM ratings WHERE user_id=?',m.player_b);const c=config(db);const aWins=m.score_a>m.score_b;
   const deltaA=elo(a.rating,b.rating,a.games,aWins,c),deltaB=elo(b.rating,a.rating,b.games,!aWins,c);
   const winner=aWins?m.player_a:m.player_b,loser=aWins?m.player_b:m.player_a;

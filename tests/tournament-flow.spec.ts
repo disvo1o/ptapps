@@ -1,8 +1,8 @@
 import { test, expect, request } from '@playwright/test';
 test('QR registration, winner-only result and player-card pack', async ({page})=>{
  await page.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async()=>{throw new Error('test camera disabled');};});
- await page.goto('/tournaments'); await page.getByRole('button',{name:'Создать турнир',exact:true}).click();
- const form=page.locator('dialog'); await form.getByLabel('Название турнира').fill('Проверка QR '+Date.now());await form.getByLabel('Место проведения').fill('Клуб');await form.locator('select[name="format"]').selectOption('SINGLE_ELIMINATION');await form.locator('select[name="seeding"]').selectOption('RANDOM');await form.getByLabel('Начало',{exact:true}).fill('2099-01-02T18:00');await form.getByLabel('Регистрация до').fill('2099-01-02T17:00');await form.getByLabel('Количество игроков').fill('2');await form.getByRole('button',{name:'Создать турнир',exact:true}).click();
+ await page.goto('/tournaments'); await page.getByRole('button',{name:'Создать',exact:true}).click();
+ const form=page.locator('dialog'); await form.getByLabel('Название турнира').fill('Проверка QR '+Date.now());await form.locator('select[name="format"]').selectOption('SINGLE_ELIMINATION');await form.getByRole('button',{name:'Создать турнир',exact:true}).click();
  await expect(page.getByRole('button',{name:'Поделиться QR'})).toBeVisible();const tid=page.url().split('/').pop()!;
  await page.getByRole('button',{name:'Поделиться QR'}).click();const invitation=await page.getByLabel('Ссылка приглашения').inputValue();await page.getByRole('button',{name:'Закрыть окно'}).click();
  await page.locator('.bottom-nav').getByRole('link',{name:'Сканировать'}).click();await page.getByLabel('Или вставь ссылку приглашения').fill(invitation);await page.getByRole('button',{name:'Открыть турнир',exact:true}).click();await page.getByRole('button',{name:'Зарегистрироваться',exact:true}).click();await expect(page.getByRole('button',{name:'Ты в списке ✓'})).toBeVisible();

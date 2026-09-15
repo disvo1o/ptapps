@@ -30,3 +30,38 @@ html[data-motion=off] *,html[data-motion=off] *:before,html[data-motion=off] *:a
 .scanner-panel{max-width:600px;margin:auto;display:grid;gap:24px}.scanner-preview{position:relative;aspect-ratio:1;border-radius:30px;overflow:hidden;background:#183b36}.scanner-preview video{width:100%;height:100%;object-fit:cover}.scanner-target{position:absolute;inset:18%;border:3px solid #fffde9;border-radius:28px;box-shadow:0 0 0 150px #183b3633;pointer-events:none}.scanner-start{border:0;display:flex;min-height:250px;align-items:center;justify-content:center;gap:18px;flex-direction:column;background:#d6eee0;border-radius:32px;color:#183b36;font-size:20px;cursor:pointer}
 @media(max-width:560px){.leader-header,.leader-row{grid-template-columns:32px minmax(0,1fr) 72px 16px;gap:8px}.bottom-nav .scan-nav span{font-size:9px}}
 .rating-rules{margin-top:24px;font-size:14px;line-height:1.7}.rating-rules h2{font-size:23px}.rating-rules p{margin:14px 0}.rating-rules ul{padding-left:22px}.rating-rules sup{overflow-wrap:anywhere}
+
+/* Quiet surfaces; movement is reserved for scan feedback and card reveals. */
+.page-content,.page-enter,.pack-wrapper,.modal{animation:none}
+button,input,select,textarea,.bottom-nav a,.bottom-nav .scan-nav span{font-family:inherit}
+.bottom-nav .scan-nav span{font-size:inherit}
+.bottom-nav .scan-nav svg{padding:8px;margin-top:0;box-shadow:none;border-radius:14px;width:22px;height:22px}
+.bottom-nav .scan-nav.active svg{box-shadow:none}
+.bottom-nav a{font-size:11px}
+.home-clean .compact-hero{min-height:240px;padding:28px;margin-bottom:28px}
+.home-clean .hero-content{width:100%}
+.home-clean .compact-hero h2{font-size:40px;line-height:1.1;margin:12px 0 22px}
+.home-clean .compact-hero:after{display:none}
+.home-clean .hero p,.home-clean .hero-label{display:none}
+.home-clean .hero .btn{width:100%;max-width:360px;min-height:54px}
+.home-summary{display:flex;align-items:center;gap:20px;margin:18px 0 24px;font-size:14px}
+.home-summary a{display:flex;gap:7px;align-items:baseline}
+.home-summary span{color:var(--muted)}
+.home-clean .home-columns{display:block;max-width:760px}
+.tournament-list{display:grid;gap:12px}
+.tournament-list-item{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px;border:1px solid var(--line);border-radius:24px;background:var(--panel)}
+.tournament-list-item h2{font-size:21px;margin:5px 0 8px}
+.tournament-list-item p{display:flex;gap:10px;flex-wrap:wrap;margin:0;color:var(--muted);font-size:13px}
+.quiet-details{border:1px solid var(--line);border-radius:20px;padding:18px;margin:16px 0;background:var(--panel)}
+.quiet-details summary{cursor:pointer;font-weight:700;font-size:14px}
+.quiet-details[open]>summary{margin-bottom:18px}
+.profile-shortcuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:20px 0}
+.profile-shortcuts a{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:20px;padding:17px;background:var(--panel);font-size:13px;font-weight:700}
+.handicap{white-space:nowrap;display:inline-flex;font-size:12px;border-radius:12px;padding:3px 8px;background:var(--cream-2);color:var(--ink);vertical-align:middle;margin-left:5px}
+.player-picker{display:grid;gap:8px;max-height:260px;overflow:auto}
+.player-picker button{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left}
+.profile-summary{margin-bottom:20px}
+.profile-summary .profile-bio:empty{display:none}
+.empty{padding:28px 16px}
+@media(max-width:620px){.stats-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.stats-grid.three .stat{padding:13px 9px}.stats-grid.three .stat strong{font-size:24px}.profile-shortcuts a{padding:15px 12px}.home-clean .compact-hero h2{font-size:38px}}
+@media(max-width:768px){.bottom-nav{justify-content:space-between;padding-left:6px;padding-right:6px}.bottom-nav a:not(.scan-nav){width:24%;flex:none}.bottom-nav .scan-nav{position:absolute;left:50%;top:4px;transform:translateX(-50%);width:64px;z-index:2}.bottom-nav .scan-nav.active{background:transparent}.bottom-nav .scan-nav:active{transform:translateX(-50%) scale(.93)}}

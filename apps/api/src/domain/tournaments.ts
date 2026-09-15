@@ -73,7 +73,7 @@ export function startTournament(db:Store,user:string,tournamentId:string){return
   db.run("UPDATE tournaments SET status='LIVE' WHERE id=?",t.id);audit(db,user,'TOURNAMENT_START',t.id,{players:entrants.length,format:t.format});return {started:true};
 });}
 function finishTournament(db:Store,t:any,champion:string,podium:string[]){
-  db.run("UPDATE tournaments SET status='FINISHED',champion_id=? WHERE id=?",champion,t.id);const c=config(db);
+  db.run("UPDATE tournaments SET status='FINISHED',champion_id=? WHERE id=?",champion,t.id);if(t.is_test)return;const c=config(db);
   for(const p of db.all('SELECT user_id FROM tournament_players WHERE tournament_id=?',t.id)){credit(db,p.user_id,c.tournamentParticipation,'TOURNAMENT',`${t.id}:participation`,'Участие в турнире');notify(db,p.user_id,'TOURNAMENT',`${t.title}: турнир завершён · +${c.tournamentParticipation} пинг поинтов`);}
   credit(db,champion,c.tournamentWin,'TOURNAMENT',`${t.id}:winner`,'Победа в турнире');notify(db,champion,'TOURNAMENT',`Ты победил в турнире «${t.title}» · +${c.tournamentWin} пинг поинтов`);db.run('UPDATE ratings SET tournament_wins=tournament_wins+1 WHERE user_id=?',champion);
   for(const p of new Set(podium))if(p)db.run('UPDATE ratings SET podiums=podiums+1 WHERE user_id=?',p);
