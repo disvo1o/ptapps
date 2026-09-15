@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS player_preferences(user_id TEXT PRIMARY KEY REFERENCES users(id), registration_mode TEXT NOT NULL DEFAULT 'QR', handicap INTEGER NOT NULL DEFAULT 0, is_guest INTEGER NOT NULL DEFAULT 0);
