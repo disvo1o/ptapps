@@ -3,12 +3,17 @@ import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { useResource, type Row } from '../api';
 import { useApp } from '../context';
-import { PageTitle, Modal, Skeleton, ErrorView } from '../components/ui';
-import { PlayerCard, rarityNames } from '../components/PlayerCard';
+import { PageTitle, Modal, Skeleton, ErrorView, Empty } from '../components/ui';
+import { PlayerCard } from '../components/PlayerCard';
 export default function Collection(){
- const {version}=useApp();const {data,error,reload}=useResource<Row[]>('/me/stickers',version);
- const [rarity,setRarity]=useState('ALL'),[filter,setFilter]=useState('owned'),[selected,setSelected]=useState<Row|null>(null);
- const shown=data?.filter(s=>(filter==='battle'?s.type==='BATTLE'&&s.quantity>0:filter==='all'?s.type==='COLLECTION':s.quantity>0)&&(rarity==='ALL'||s.rarity===rarity));
- const players=new Set(data?.map(s=>s.owner_id)).size, collected=new Set(data?.filter(s=>s.quantity>0).map(s=>s.owner_id)).size, progress=players?Math.round(collected/players*100):0;
- return <><PageTitle eyebrow="люди, с которыми нас свёл пинг-понг" title="Твоя коллекция." description="Побеждай на турнирах и открывай наборы с карточками настоящих игроков." action={<Link className="btn primary" to="/shop">Открыть набор <ArrowUpRight size={18}/></Link>}/><div className="collection-banner"><div><span className="eyebrow">альбом игроков</span><strong>{collected}<span> / {players}</span></strong><p>Игроков в твоей коллекции. Альбом растёт вместе с сообществом.</p></div><div className="collection-ring" style={{'--progress':`${progress}%`} as React.CSSProperties}><span>{progress}%<small>собрано</small></span></div></div><div className="filter-row"><div className="tabs">{[['owned','Мои карточки'],['battle','За победы'],['all','Альбом']].map(([v,l])=><button className={filter===v?'active':''} key={v} onClick={()=>setFilter(v)}>{l}</button>)}</div><label className="inline-select"><span>Редкость</span><select aria-label="Фильтр редкости" value={rarity} onChange={e=>setRarity(e.target.value)}>{Object.entries(rarityNames).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label></div><p className="info-note">За каждую победу в турнирном матче получаешь карточку соперника. Его карточки остаются у него. Аватар и характеристики в альбоме обновляются вместе с профилем игрока.</p>{error?<ErrorView message={error} retry={reload}/>:!data?<Skeleton/>:<div className="collection-grid">{shown?.map(s=><PlayerCard key={s.id} card={s} onClick={()=>setSelected(s)}/>)}</div>}{shown?.length===0&&<p className="empty">Первые карточки ждут в наборах и на турнирах.</p>}{selected&&<Modal title={selected.name} onClose={()=>setSelected(null)}><div className="sticker-detail"><PlayerCard card={selected}/><p>{selected.description}</p><p>{selected.quantity?`Экземпляров в коллекции: ${selected.quantity}.`:'Этой карточки пока нет в альбоме.'}</p><Link className="btn primary" to={`/players/${selected.owner_id}`}>Профиль игрока <ArrowUpRight size={18}/></Link></div></Modal>}</>;
+ const {version}=useApp();
+ const {data:cards,error,reload}=useResource<Row[]>('/me/stickers',version);
+ const [selected,setSelected]=useState<Row|null>(null);
+ const collected=cards?.filter(card=>card.quantity>0).length||0;
+ return <section className="album-page">
+  <PageTitle title="Коллекция" action={<Link className="btn" to="/shop">Открыть пак <ArrowUpRight size={16}/></Link>}/>
+  {cards&&<p className="album-count">Собрано <strong>{collected} из {cards.length}</strong></p>}
+  {error?<ErrorView message={error} retry={reload}/>:!cards?<Skeleton/>:!cards.length?<Empty title="Игроки скоро появятся"/>:<div className="collection-grid album-grid">{cards.map(card=><PlayerCard key={card.owner_id} card={card} onClick={()=>setSelected(card)}/>)}</div>}
+  {selected&&<Modal title={selected.name} onClose={()=>setSelected(null)}><div className="sticker-detail"><PlayerCard card={selected}/><p>{selected.quantity>0?'В твоей коллекции':'Пока не получена'}</p><Link className="btn primary" to={`/players/${selected.owner_id}`}>Профиль игрока <ArrowUpRight size={18}/></Link></div></Modal>}
+ </section>;
 }
