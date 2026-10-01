@@ -1,4 +1,4 @@
-import { useRef, useEffect, type ReactNode } from 'react';
+import { useRef, useEffect, useId, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, X, ArrowRight, Trophy, LockKeyhole } from 'lucide-react';
 import { type Row, number } from '../api';
@@ -10,7 +10,7 @@ export function PageTitle({eyebrow,title,description,action}:{eyebrow?:string;ti
 export function SectionTitle({title,to,label='Все'}:{title:string;to?:string;label?:string}){return <div className="section-title"><h2>{title}</h2>{to&&<Link to={to}>{label} <ArrowUpRight size={16}/></Link>}</div>;}
 /** Лиги убраны из продукта; оставляем совместимый компонент для старых данных. */
 export function League(_props:{value:string}){return null;}
-export function Modal({title,children,onClose}:{title:string;children:ReactNode;onClose:()=>void}){const ref=useRef<HTMLDialogElement>(null);useEffect(()=>{ref.current?.showModal();return()=>ref.current?.close();},[]);return <dialog ref={ref} className="modal" onCancel={e=>{e.preventDefault();onClose();}} onClick={e=>{if(e.target===ref.current)onClose();}}><div className="modal-head"><h2>{title}</h2><button className="icon-btn" aria-label="Закрыть окно" onClick={onClose}><X/></button></div>{children}</dialog>;}
+export function Modal({title,children,onClose}:{title:string;children:ReactNode;onClose:()=>void}){const ref=useRef<HTMLDialogElement>(null),titleId=useId();useEffect(()=>{ref.current?.showModal();return()=>ref.current?.close();},[]);return <dialog ref={ref} className="modal" aria-labelledby={titleId} onCancel={e=>{e.preventDefault();onClose();}} onClick={e=>{if(e.target===ref.current)onClose();}}><div className="modal-head"><h2 id={titleId}>{title}</h2><button className="icon-btn" aria-label="Закрыть окно" onClick={onClose}><X/></button></div>{children}</dialog>;}
 export function StickerCard({sticker,onClick}:{sticker:Row;onClick?:()=>void}){const locked=sticker.quantity===0;const inside=<><div className="sticker-art"><img src={sticker.image_url} alt={locked?'Стикер ещё не найден':sticker.name}/>{locked?<LockKeyhole className="sticker-lock" size={22}/>:sticker.quantity>1&&<span className="quantity">×{sticker.quantity}</span>}</div><span className="rarity">{sticker.rarity}</span><strong>{sticker.name}</strong></>;return onClick?<button className={`sticker-card rarity-${sticker.rarity.toLowerCase()} ${locked?'locked':''}`} onClick={onClick}>{inside}</button>:<div className={`sticker-card rarity-${sticker.rarity.toLowerCase()} ${locked?'locked':''}`}>{inside}</div>;}
 export function Stat({label,value,note}:{label:string;value:string|number;note?:string}){return <div className="stat"><span>{label}</span><strong>{typeof value==='number'?number(value):value}</strong>{note&&<small>{note}</small>}</div>;}
 export function FormError({message}:{message:string}){return message?<p className="form-error" role="alert">{message}</p>:null;}

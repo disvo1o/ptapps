@@ -11,7 +11,7 @@ export default function Layout(){
  const [theme,setTheme]=useState(localStorage.getItem('pt-theme')||'light');
  
  const location=useLocation(),navigate=useNavigate();
- useEffect(()=>{document.documentElement.dataset.theme=theme;localStorage.setItem('pt-theme',theme);try{tg()?.setHeaderColor?.(theme==='dark'?'#1b201e':'#f4f2eb');tg()?.setBackgroundColor?.(theme==='dark'?'#1b201e':'#f4f2eb');}catch{}},[theme]);
+ useEffect(()=>{document.documentElement.dataset.theme=theme;localStorage.setItem('pt-theme',theme);try{tg()?.setHeaderColor?.(theme==='dark'?'#14232b':'#eef1f3');tg()?.setBackgroundColor?.(theme==='dark'?'#14232b':'#eef1f3');}catch{}},[theme]);
  useEffect(()=>{window.scrollTo(0,0);const app=tg();if(!app?.initData)return;const back=()=>navigate(-1);if(location.pathname!=='/')app.BackButton.show();else app.BackButton.hide();app.BackButton.onClick(back);
  const viewport=()=>{const s=document.documentElement.style;s.setProperty('--tg-viewport',`${app.viewportStableHeight||window.innerHeight}px`);s.setProperty('--tg-safe-top',`${(app.safeAreaInset?.top||0)+(app.contentSafeAreaInset?.top||0)}px`);s.setProperty('--tg-safe-bottom',`${app.safeAreaInset?.bottom||0}px`);};
  app.onEvent('viewportChanged',viewport);app.onEvent('safeAreaChanged',viewport);app.onEvent('contentSafeAreaChanged',viewport);viewport();return()=>{app.BackButton.offClick(back);app.offEvent('viewportChanged',viewport);app.offEvent('safeAreaChanged',viewport);app.offEvent('contentSafeAreaChanged',viewport);};},[location.pathname,navigate]);
@@ -20,8 +20,8 @@ export default function Layout(){
   const icon=link.querySelector('svg');if(!icon)return;
   icon.getAnimations().forEach(animation=>animation.cancel());
   const href=link.getAttribute('href');
-  const motion=href==='/scan'?['scale(1)','scale(.78) rotate(-10deg)','scale(1.15) rotate(8deg)','scale(1)']:href==='/leaderboard'?['scaleY(1)','scaleY(.65)','scaleY(1.2)','scaleY(1)']:href==='/profile'?['rotate(0)','rotate(-16deg)','rotate(12deg)','rotate(0)']:['translateY(0)','translateY(-5px) scale(1.12)','translateY(1px) scale(.95)','translateY(0)'];
-  icon.animate(motion.map(transform=>({transform})),{duration:440,easing:'cubic-bezier(.2,.7,.3,1)'});
+  const motion=href==='/scan'?['scale(1)','scale(.92)','scale(1.04)','scale(1)']:href==='/leaderboard'?['scaleY(1)','scaleY(.9)','scaleY(1.04)','scaleY(1)']:href==='/profile'?['rotate(0)','rotate(-5deg)','rotate(3deg)','rotate(0)']:['translateY(0)','translateY(-2px)','translateY(1px)','translateY(0)'];
+  icon.animate(motion.map(transform=>({transform})),{duration:320,easing:'cubic-bezier(.2,.7,.3,1)'});
  }
  return <div className="app-shell" onClickCapture={e=>{const el=(e.target as HTMLElement).closest('a,button,summary');if(el&&!el.hasAttribute('disabled')){haptic(el.closest('.tabs,.bottom-nav,.sidebar')?'selection':'soft');if(el.closest('.bottom-nav'))animateIcon(el);}}}>
  <aside className="sidebar"><Link to="/" className="wordmark" aria-label="пинг таблет — главная"><span className="brand-symbol" aria-hidden="true">↗</span>пинг таблет</Link><span className="brand-caption">клуб настольного тенниса</span><div className="nav-caption">твоя игра</div><nav>{nav.map(({to,label,icon:Icon})=><NavLink key={to} className={to==='/scan'?'scan-nav':undefined} to={to} end={to==='/'}><Icon size={21}/><span>{label}</span></NavLink>)}</nav>{me.role==='ADMIN'&&<><div className="nav-caption">администрирование</div><nav><NavLink to="/admin"><Settings2 size={21}/>Управление</NavLink></nav></>}<div className="sidebar-bottom"><Link className="account-row" to="/profile"><Avatar user={me}/><strong>{me.display_name.split(' ')[0]}</strong></Link></div></aside>

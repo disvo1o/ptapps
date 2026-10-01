@@ -1,17 +1,26 @@
-# Club edition — September 2026
-A considered table-tennis club identity: warm paper, ink typography, cobalt court and orange ball. Compact useful screens, with visual emphasis on play, players and real results.
+# Quiet court — 2 октября 2026
 
-## System
-- Paper #f4f2eb; surface #fffefa; ink #252823; muted #6c7167; rule #dedfd6.
-- Cobalt #233dcc for court illustration; orange #e86031 for selected controls; moss #58764a for success.
-- Native sans-serif supporting Cyrillic; tight large headings, tabular scores, readable body text.
-- 8px spacing rhythm; 20–28px surface radii, 14px controls, round mobile glass dock.
-- 4 equal dock slots, never absolute-position one link on another. Safe areas always respected.
-- Responsive at 320, 390, 768, 900, 1280px. Main content max 1120px. Album exactly 3 columns.
-- Action feedback via short spring icon movements, subtle press scaling and pack reveal. Reduced-motion and saved motion preferences disable animation.
+Редизайн существующего приложения по пользовательскому визуальному референсу. Карта поведения до изменений: UI_INVENTORY.md. Структура React/API и данные сохраняются.
 
-## Surfaces
-Home: greeting, court illustration with primary scan action, compact personal metrics, next tournament.
-Album: title, ownership count, three-column cards; coloured owned cards and grey locked cards. No acquisition or rarity filters.
-Profile: player identity, 3 meaningful stats, clean rows of secondary destinations.
-Operational screens: same tokens, clear statuses, modest chrome, roomy touch targets.
+## Визуальная идея
+Спокойный клуб настольного тенниса: фотография ракетки, мяча и сетки на столе, приглушённые сине-серые цвета, светлый воздух, текст и стеклянные действия непосредственно поверх изображения. Не копируем горы, бренд, тексты или wellness-функции из референса.
+
+## Единая система
+- Фон #eef1f3; поверхность #fbfcfd; текст #263b46; вторичный #657883; акцент #617e89; линии #d8e1e5.
+- Тёмная тема: фон #14232b; поверхность #20323c; текст #eef4f7. Контраст сохраняется на всех состояниях.
+- Системный sans с кириллицей; заголовки 32–48, hero 40–72, основной 14–15, подписи 11–13; числовые данные tabular.
+- Шаги пространства 4/8/12/16/24/32/48. Радиусы 14/24/32; нижний док и основные кнопки — pill.
+- Стекло применяется поверх фото и в доке; формы имеют устойчивый непрозрачный фон. Тени мягкие и малоконтрастные.
+- Lucide line icons, stroke 1.55. Интерактивные кнопки обычно 44–52 px, четыре одинаковых слота дока.
+- Движение 240–350 мс, малые opacity/scale/translate; без бесконечного движения hero. Поддерживаются prefers-reduced-motion и сохранённая настройка.
+
+## Раскладка и доступность
+Главная: фото → приветствие/заголовок → два рабочих действия → рейтинг/баланс → турнир. Все значения из текущего API. Фото декоративно и не блокирует UI при ошибке загрузки.
+Профиль: идентичность → существующие метрики → все разделы → настройки. Достижения получили явную ссылку.
+Сложные правила Эло раскрываются через details/summary без удаления содержимого. Управление турнирами и админские действия сохраняют свои права и условия.
+Альбом: ровно 3 колонки, один игрок на карточку, серые закрытые карточки. Модальный просмотр сохраняет крупные данные.
+Формы: native inputs/select/dialog; заметный focus, доступные имена, busy/error/success; внутренний скролл для сетки и больших записей.
+Мобильные safe areas Telegram и нижний отступ дока сохранены. Проверка 320/390/768/1280/1440 px.
+
+## Изображение
+Локальный оптимизированный WebP, без запроса к внешнему фотохостингу при открытии. Автор и лицензия: apps/web/public/images/CREDITS.md. Фотография — атмосфера клуба, не изображение фактического места турнира.
