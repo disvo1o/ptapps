@@ -11,6 +11,8 @@ import { Store, fail } from './db.js';
 import { authRoutes, current } from './auth.js';
 import { playerRoutes } from './routes/player-routes.js';
 import { tournamentRoutes } from './routes/tournament-routes.js';
+import { venueRoutes } from './routes/venue-routes.js';
+import { gameRoutes } from './routes/game-routes.js';
 import { adminRoutes } from './routes/admin-routes.js';
 export async function createApp(db:Store,options:{mock?:boolean;logger?:boolean}={}){
  const production=process.env.APP_ENV==='production',mock=options.mock??(!production&&process.env.MOCK_TELEGRAM!=='false');
@@ -25,8 +27,8 @@ export async function createApp(db:Store,options:{mock?:boolean;logger?:boolean}
    try{await req.jwtVerify({onlyCookie:!req.headers.authorization});}catch{fail('Открой приложение заново, чтобы войти',401);}
    const u=db.get('SELECT id,banned FROM users WHERE id=?',current(req));if(!u)fail('Открой приложение заново, чтобы войти',401);if(u.banned)fail('Аккаунт заблокирован',403);
  });
- app.setErrorHandler((err,req,reply)=>{if(err instanceof ZodError)return reply.code(400).send({error:'Проверь заполненные поля: обязательные значения, формат и допустимые ограничения.'});const e=err as Error & {statusCode?:number};const status=e.statusCode&&e.statusCode>=400&&e.statusCode<500?e.statusCode:500;if(status===500)req.log.error(err);return reply.code(status).send({error:status===500?'Не удалось выполнить действие. Попробуй ещё раз.':e.message});});
- app.get('/api/health',async()=>({ok:true,database:!!db.get('SELECT 1')}));authRoutes(app,db,mock);playerRoutes(app,db);tournamentRoutes(app,db);adminRoutes(app,db);
+ app.setErrorHandler((err,req,reply)=>{if(err instanceof ZodError)return reply.code(400).send({error:'Проверь заполненные поля: обязательные значения, формат и допустимые ограничения.'});const e=err as Error & {statusCode?:number};const status=e.statusCode&&e.statusCode>=400&&e.statusCode<500?e.statusCode:500;if(status===500)req.log.error(err);return reply.code(status).send({error:status===500?'Не удалось выполнить действие. Попробуй ещё раз.':status===429?'Слишком много запросов. Подожди минуту и повтори.':e.message});});
+ app.get('/api/health',async()=>({ok:true,database:!!db.get('SELECT 1')}));authRoutes(app,db,mock);playerRoutes(app,db);tournamentRoutes(app,db);adminRoutes(app,db);venueRoutes(app,db);gameRoutes(app,db);
  const dist=resolve('dist/web');if(existsSync(dist)){await app.register(staticFiles,{root:dist});app.setNotFoundHandler((req,reply)=>req.url.startsWith('/api/')?reply.code(404).send({error:'Не найдено'}):reply.sendFile('index.html'));}
  await app.ready();return app;
 }

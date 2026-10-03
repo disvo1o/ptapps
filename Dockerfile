@@ -13,6 +13,7 @@ RUN npm ci --omit=dev
 COPY --from=build /app/apps ./apps
 COPY --from=build /app/database ./database
 COPY --from=build /app/scripts ./scripts
+COPY --from=build /app/shared ./shared
 COPY --from=build /app/dist ./dist
 RUN mkdir -p /app/.data
 EXPOSE 3001

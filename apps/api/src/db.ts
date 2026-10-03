@@ -5,9 +5,11 @@ import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 export class Store {
   db: DatabaseSync;
+  path: string;
   constructor(url = process.env.DATABASE_URL || 'file:./.data/ping.sqlite') {
     if (!url.startsWith('file:') && url !== ':memory:') throw new Error('This local adapter requires DATABASE_URL=file:...');
     const path = url === ':memory:' ? url : resolve(url.slice(5));
+    this.path=path;
     if (path !== ':memory:') mkdirSync(dirname(path),{recursive:true});
     this.db = new DatabaseSync(path);
     this.db.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;');
@@ -19,7 +21,10 @@ export class Store {
   migrate(){
     this.db.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)');
     const directory=new URL('../../../database/migrations/',import.meta.url);
-    for(const file of readdirSync(directory).filter(f=>/^\d+_.+\.sql$/.test(f)).sort()){
+    const files=readdirSync(directory).filter(f=>/^\d+_.+\.sql$/.test(f)).sort();
+    const pending=files.filter(f=>!this.get('SELECT version FROM schema_migrations WHERE version=?',f.split('_')[0]));
+    if(pending.length&&this.path!==':memory:'&&this.get('SELECT 1 FROM schema_migrations LIMIT 1')){const backupDirectory=resolve(dirname(this.path),'backups');mkdirSync(backupDirectory,{recursive:true});const backup=resolve(backupDirectory,`before-${pending[0].split('_')[0]}-${Date.now()}.sqlite`);this.db.prepare('VACUUM INTO ?').run(backup);}
+    for(const file of files){
       const version=file.split('_')[0];
       if(!this.get('SELECT version FROM schema_migrations WHERE version=?',version))this.tx(()=>{
         this.db.exec(readFileSync(new URL(file,directory),'utf8'));

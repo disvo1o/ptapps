@@ -27,7 +27,7 @@ export function seed(db:Store,demo=true){
  for(let i=0;i<126;i++){
    const opponent=uid(i%28+1),win=i<119?(i%17<6||(i%17>=9&&i%17<14)):true;const date=new Date(Date.now()-(130-i)*86400000).toISOString();const mid=id();
    db.run("INSERT INTO matches(id,player_a,player_b,score_a,score_b,winner,loser,status,created_at,confirmed_at,rating_change_a,rating_change_b) VALUES (?,?,?,?,?,?,?,'CONFIRMED',?,?,?,?)",mid,'alex',opponent,win?11:7,win?8:11,win?'alex':opponent,win?opponent:'alex',date,date,win?12:-12,win?-12:12);
-   db.run('INSERT INTO rating_history VALUES (?,?,?,?,?,?)',id(),'alex','season-01',Math.round(1000+i*2.1+Math.sin(i/7)*42),mid,date);
+   db.run('INSERT INTO rating_history(id,user_id,season_id,rating,match_id,created_at) VALUES (?,?,?,?,?,?)',id(),'alex','season-01',Math.round(1000+i*2.1+Math.sin(i/7)*42),mid,date);
  }
  // Games between the remaining demo players give the global table meaningful variety.
  for(let i=0;i<180;i++){
@@ -39,10 +39,10 @@ export function seed(db:Store,demo=true){
   for(const m of ms){if(m.winner===u){wins++;streak++;longest=Math.max(longest,streak);}else streak=0;}
   db.run('UPDATE ratings SET games=?,wins=?,losses=?,streak=?,longest_streak=? WHERE user_id=?',ms.length,wins,ms.length-wins,streak,longest,u);
   if(i===0)db.run('UPDATE ratings SET longest_streak=7 WHERE user_id=?',u);
-  if(i!==0)for(let j=0;j<15;j++)db.run('INSERT INTO rating_history VALUES (?,?,?,?,?,?)',id(),u,'season-01',db.get('SELECT rating FROM ratings WHERE user_id=?',u).rating-100+j*7,null,new Date(Date.now()-(16-j)*86400000).toISOString());
+  if(i!==0)for(let j=0;j<15;j++)db.run('INSERT INTO rating_history(id,user_id,season_id,rating,match_id,created_at) VALUES (?,?,?,?,?,?)',id(),u,'season-01',db.get('SELECT rating FROM ratings WHERE user_id=?',u).rating-100+j*7,null,new Date(Date.now()-(16-j)*86400000).toISOString());
   achievements(db,u);credit(db,u,(i===0?1840:300+(i*173)%2400)-balance(db,u),'BONUS','demo-seed','Начальный демо-баланс');
  }
- db.run('INSERT INTO rating_history VALUES (?,?,?,?,?,?)',id(),'alex','season-01',1284,null,now());
+ db.run('INSERT INTO rating_history(id,user_id,season_id,rating,match_id,created_at) VALUES (?,?,?,?,?,?)',id(),'alex','season-01',1284,null,now());
  for(const [tid,title,loc,days,max,count,start] of [['weekend','The Weekend Rally','Club Pong · Amsterdam',5,16,12,1],['afterhours','After Hours Open','Spin Studio · Amsterdam',2,8,7,2],['city-cup','City Cup — Live','De Pijp · Amsterdam',0,4,4,3]] as const){
    db.run("INSERT INTO tournaments(id,title,description,organizer_id,location,start_at,registration_deadline,max_players,format,status,qr_token,season_id,created_at) VALUES (?,?,?,?,?,?,?,?,'SINGLE_ELIMINATION','OPEN',?,?,?)",tid,title,'Good people. Great rallies. Bring your best game. All levels welcome.','max',loc,new Date(Date.now()+(days+1)*86400000).toISOString(),new Date(Date.now()+(days+0.9)*86400000).toISOString(),max,qrToken(),'season-01',now());
    for(let p=start;p<start+count;p++)db.run('INSERT INTO tournament_players VALUES (?,?,?)',tid,uid(p),now());

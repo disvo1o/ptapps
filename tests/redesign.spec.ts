@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+test.beforeEach(async({page})=>{await page.route('https://telegram.org/**',r=>r.abort());});
 
 test('secondary destinations, player details and rating explanation remain reachable', async ({page}) => {
  await page.goto('/profile');
- for(const label of ['Коллекция','Пинг поинты','Рейтинг клуба','Турниры','Уведомления','Статистика','Достижения']) {
+ for(const label of ['Карточки','Пинг поинты','Турниры','Статистика','Достижения']) {
   await expect(page.locator('.profile-shortcuts').getByRole('link',{name:label,exact:true})).toBeVisible();
  }
  await page.getByRole('link',{name:'Достижения',exact:true}).click();
@@ -11,8 +12,8 @@ test('secondary destinations, player details and rating explanation remain reach
  await page.getByRole('link',{name:'Статистика',exact:true}).click();
  await expect(page.getByRole('img',{name:/История рейтинга/})).toBeVisible();
  await page.locator('.rating-rules summary').click();
- await expect(page.locator('.rating-rules')).toContainText('K = 40');
- await page.goto('/collection');
+ await expect(page.locator('.rating-rules')).toContainText('неопределённость');
+ await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new PopStateEvent('popstate'));},'/collection');
  await page.locator('.album-grid .player-card').first().click();
  const dialog=page.getByRole('dialog');await expect(dialog).toHaveAccessibleName(/\S/);
  await dialog.getByRole('link',{name:'Профиль игрока'}).click();
@@ -26,7 +27,7 @@ test('admin points adjustment, search and role editor preserve their actions', a
  await expect(page.getByRole('heading',{name:'Привет, Sam.'})).toBeVisible();
  await page.locator('.bottom-nav').getByRole('link',{name:'Профиль',exact:true}).click();
  await page.locator('.profile-shortcuts').getByRole('link',{name:'Управление',exact:true}).click();
- await expect(page.locator('.tabs button')).toHaveCount(9);
+ await expect(page.locator('.tabs button')).toHaveCount(10);
  await page.getByLabel('Поиск записей').fill('Luna');
  await page.getByRole('button',{name:'Управлять',exact:true}).click();
  await expect(page.getByRole('dialog').getByRole('combobox',{name:'Роль',exact:true})).toBeVisible();
@@ -43,7 +44,7 @@ test('admin points adjustment, search and role editor preserve their actions', a
  await expect(page.locator('.admin-records')).toContainText(reason);
 });
 
-test('test tournament keeps sixteen entrants, swaps and scored results', async ({page}) => {
+test('test tournament keeps sixteen entrants, swaps and winner selection', async ({page}) => {
  await page.goto('/tournaments');await page.getByRole('button',{name:'Тест 16',exact:true}).click();
  await expect(page.locator('.lineup-row')).toHaveCount(16);
  await page.getByRole('button',{name:'Начать турнир',exact:true}).click();
@@ -55,9 +56,7 @@ test('test tournament keeps sixteen entrants, swaps and scored results', async (
  await players.selectOption(entrant!);
  await page.getByRole('dialog').getByRole('button',{name:'Заменить игрока',exact:true}).click();
  await expect(page.getByRole('dialog')).toHaveCount(0);
- await page.getByRole('button',{name:'Выбрать победителя'}).first().click();
- await page.getByLabel('Добавить счёт партии').check();
- await page.getByLabel('Счёт первого игрока').fill('11');await page.getByLabel('Счёт второго игрока').fill('8');
+ await page.locator('.bracket-match.ready .match-player').first().click();
  await page.getByRole('button',{name:'Подтвердить результат'}).click();
  await expect(page.locator('.bracket-match.done')).toHaveCount(1);
 });
@@ -71,10 +70,10 @@ test('empty, error and camera fallback retain useful actions', async ({page}) =>
   if(fail){await route.fulfill({status:503,json:{error:'Проверка состояния ошибки'}});return;}
   await route.continue();
  });
- await page.goto('/leaderboard');await expect(page.getByRole('alert')).toContainText('Проверка состояния ошибки');
+ await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new PopStateEvent('popstate'));},'/leaderboard');await expect(page.getByRole('alert')).toContainText('Проверка состояния ошибки');
  fail=false;await page.getByRole('button',{name:'Повторить'}).click();await expect(page.locator('.leader-row').first()).toBeVisible();
  await page.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async()=>{throw new Error('denied for test')};});
- await page.goto('/scan');await expect(page.getByRole('button',{name:'Открыть камеру'})).toBeVisible();
- await page.getByLabel('Или вставь ссылку приглашения').fill('неверный код');
- await page.getByRole('button',{name:'Открыть турнир',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Это не приглашение');
+ await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new PopStateEvent('popstate'));},'/scan');await expect(page.getByRole('button',{name:'Открыть камеру'})).toBeVisible();
+ await expect(page.getByRole('alert')).toContainText('Не удалось открыть камеру');
+ await expect(page.locator('.scanner-panel input')).toHaveCount(0);
 });
