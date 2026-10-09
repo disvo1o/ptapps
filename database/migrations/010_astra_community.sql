@@ -1,0 +1,18 @@
+CREATE TABLE web_sessions (hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),expires_at TEXT NOT NULL,created_at TEXT NOT NULL);
+CREATE INDEX web_sessions_user ON web_sessions(user_id);
+CREATE TABLE login_requests (hash TEXT PRIMARY KEY,code TEXT UNIQUE NOT NULL,user_id TEXT REFERENCES users(id),expires_at TEXT NOT NULL,used_at TEXT);
+CREATE TABLE oauth_states (hash TEXT PRIMARY KEY,verifier TEXT NOT NULL,nonce TEXT NOT NULL,expires_at TEXT NOT NULL);
+CREATE TABLE community_tasks (id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL,conditions TEXT NOT NULL,reward INTEGER NOT NULL CHECK(reward>0),deadline TEXT,tournament_id TEXT REFERENCES tournaments(id),active INTEGER NOT NULL DEFAULT 1,created_by TEXT NOT NULL REFERENCES users(id),created_at TEXT NOT NULL);
+CREATE TABLE task_submissions (id TEXT PRIMARY KEY,task_id TEXT NOT NULL REFERENCES community_tasks(id),user_id TEXT NOT NULL REFERENCES users(id),proof TEXT NOT NULL,note TEXT NOT NULL DEFAULT '',status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','APPROVED','REJECTED')),review_note TEXT NOT NULL DEFAULT '',reward INTEGER NOT NULL,created_at TEXT NOT NULL,reviewed_at TEXT,reviewed_by TEXT REFERENCES users(id),UNIQUE(task_id,user_id));
+CREATE TABLE resource_transactions (id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),resource TEXT NOT NULL CHECK(resource='HANDICAP'),amount INTEGER NOT NULL,reason TEXT NOT NULL,reference_id TEXT NOT NULL,actor_id TEXT REFERENCES users(id),created_at TEXT NOT NULL,UNIQUE(user_id,resource,reference_id));
+CREATE TRIGGER resource_no_update BEFORE UPDATE ON resource_transactions BEGIN SELECT RAISE(ABORT,'Ledger entries are immutable'); END;
+CREATE TRIGGER resource_no_delete BEFORE DELETE ON resource_transactions BEGIN SELECT RAISE(ABORT,'Ledger entries are immutable'); END;
+CREATE TABLE tournament_ads (tournament_id TEXT PRIMARY KEY REFERENCES tournaments(id),image TEXT NOT NULL,text TEXT NOT NULL,url TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 0,frequency_hours INTEGER NOT NULL DEFAULT 24 CHECK(frequency_hours BETWEEN 1 AND 720),updated_at TEXT NOT NULL);
+CREATE TABLE ad_dismissals (user_id TEXT REFERENCES users(id),tournament_id TEXT REFERENCES tournaments(id),until_at TEXT NOT NULL,PRIMARY KEY(user_id,tournament_id));
+CREATE TABLE tournament_late (tournament_id TEXT REFERENCES tournaments(id),user_id TEXT REFERENCES users(id),created_at TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'LATE' CHECK(status IN ('LATE','ARRIVED')),PRIMARY KEY(tournament_id,user_id));
+CREATE TABLE dating_profiles (user_id TEXT PRIMARY KEY REFERENCES users(id),visible INTEGER NOT NULL DEFAULT 0,bio TEXT NOT NULL DEFAULT '',show_username INTEGER NOT NULL DEFAULT 0,show_photo INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE dating_likes (sender TEXT REFERENCES users(id),recipient TEXT REFERENCES users(id),created_at TEXT NOT NULL,skipped INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(sender,recipient),CHECK(sender<>recipient));
+CREATE TABLE dating_matches (user_a TEXT REFERENCES users(id),user_b TEXT REFERENCES users(id),created_at TEXT NOT NULL,PRIMARY KEY(user_a,user_b),CHECK(user_a<user_b));
+CREATE TABLE dating_blocks (blocker TEXT REFERENCES users(id),blocked TEXT REFERENCES users(id),created_at TEXT NOT NULL,PRIMARY KEY(blocker,blocked),CHECK(blocker<>blocked));
+CREATE TABLE dating_reports (id TEXT PRIMARY KEY,reporter TEXT REFERENCES users(id),reported TEXT REFERENCES users(id),reason TEXT NOT NULL,created_at TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'OPEN');
+CREATE INDEX game_week ON game_sessions(game,finished_at,score);

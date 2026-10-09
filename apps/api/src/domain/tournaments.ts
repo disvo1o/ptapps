@@ -1,3 +1,4 @@
+import { handicapCredit } from './resources.js';
 import { randomBytes, randomInt } from 'node:crypto';
 import { Store, id, now, fail, requireRow, audit, notify } from '../db.js';
 import { settleMatch, validateScore } from './matches.js';
@@ -75,6 +76,7 @@ export function startTournament(db:Store,user:string,tournamentId:string){return
 });}
 function finishTournament(db:Store,t:any,champion:string,podium:string[]){
   db.run("UPDATE tournaments SET status='FINISHED',champion_id=?,finished_at=? WHERE id=?",champion,now(),t.id);if(t.is_test)return;rateTournament(db,t.id);const c=config(db);
+  for(const [index,uid] of [...new Set(podium)].entries())if(uid&&!db.get('SELECT 1 FROM player_preferences WHERE user_id=? AND is_guest=1',uid)){const place=index===0?1:index===1?2:3;handicapCredit(db,uid,place===1?2:1,`${place} место · ${t.title}`,`tournament:${t.id}`);}
   for(const p of db.all('SELECT user_id FROM tournament_players WHERE tournament_id=? AND NOT EXISTS(SELECT 1 FROM player_preferences pp WHERE pp.user_id=tournament_players.user_id AND pp.is_guest=1)',t.id)){credit(db,p.user_id,c.tournamentParticipation,'TOURNAMENT',`${t.id}:participation`,'Участие в турнире');notify(db,p.user_id,'TOURNAMENT',`${t.title}: турнир завершён · +${c.tournamentParticipation} пинг поинтов`);}
   if(!db.get('SELECT 1 FROM player_preferences WHERE user_id=? AND is_guest=1',champion)){credit(db,champion,c.tournamentWin,'TOURNAMENT',`${t.id}:winner`,'Победа в турнире');notify(db,champion,'TOURNAMENT',`Ты победил в турнире «${t.title}» · +${c.tournamentWin} пинг поинтов`);db.run('UPDATE ratings SET tournament_wins=tournament_wins+1 WHERE user_id=?',champion);}
   for(const p of new Set(podium))if(p&&!db.get('SELECT 1 FROM player_preferences WHERE user_id=? AND is_guest=1',p))db.run('UPDATE ratings SET podiums=podiums+1 WHERE user_id=?',p);

@@ -3,7 +3,7 @@ test.beforeEach(async({page})=>{await page.route('https://telegram.org/**',r=>r.
 
 test('secondary destinations, player details and rating explanation remain reachable', async ({page}) => {
  await page.goto('/profile');
- for(const label of ['Карточки','Пинг поинты','Турниры','Статистика','Достижения']) {
+ for(const label of ['Карточки','Понгсы','Турниры','Статистика','Достижения']) {
   await expect(page.locator('.profile-shortcuts').getByRole('link',{name:label,exact:true})).toBeVisible();
  }
  await page.getByRole('link',{name:'Достижения',exact:true}).click();
@@ -34,10 +34,10 @@ test('admin points adjustment, search and role editor preserve their actions', a
  await expect(page.getByRole('dialog').getByRole('combobox',{name:'Доступ',exact:true})).toBeVisible();
  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
  await page.getByLabel('Поиск записей').fill('');
- await page.getByRole('button',{name:'Пинг поинты',exact:true}).click();
- await page.getByRole('button',{name:'Начислить ПП'}).click();
+ await page.getByRole('button',{name:'Понгсы',exact:true}).click();
+ await page.getByRole('button',{name:'Начислить понгсы'}).click();
  await page.getByRole('combobox',{name:'Игрок',exact:true}).selectOption('player-3');
- await page.getByLabel('Количество ПП').fill('25');
+ await page.getByLabel('Количество понгсов').fill('25');
  const reason='Проверка интерфейса '+Date.now();await page.getByLabel('Причина').fill(reason);
  await page.getByRole('button',{name:'Начислить',exact:true}).click();
  await expect(page.getByRole('dialog')).toHaveCount(0);

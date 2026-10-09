@@ -10,5 +10,7 @@ test('opens the app and profile with cookies blocked',async({page})=>{
  await expect(page.locator('.bottom-nav')).toBeVisible();
  await page.goto('/profile');
  await expect(page.locator('.bottom-nav')).toBeVisible();
+ await expect(page.locator('.profile-identity')).toBeVisible();
  await expect(page.getByText('Попробуем ещё раз.')).toHaveCount(0);
+ await page.unrouteAll({behavior:'wait'});
 });

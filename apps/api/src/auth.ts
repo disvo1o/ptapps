@@ -1,3 +1,5 @@
+import {issueSession,upsertTelegram,webAuthRoutes} from './web-auth.js';
+import {createHash} from 'node:crypto';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -19,22 +21,17 @@ export function validateTelegram(initData:string,token:string,clock=Date.now()){
 export function current(req:FastifyRequest):string{return (req.user as {sub:string}).sub;}
 export function authorize(db:Store,req:FastifyRequest,roles:string[]){const u=db.get('SELECT role FROM users WHERE id=?',current(req));if(!u||!roles.includes(u.role))fail('У тебя нет прав для этого действия',403);}
 export function authRoutes(app:FastifyInstance,db:Store,mock:boolean){
-  app.get('/api/auth/config',async()=>({mock}));
-  app.post('/api/auth/telegram',{config:{rateLimit:{max:30,timeWindow:'1 minute'}}},async(req,reply)=>{
+  webAuthRoutes(app,db);
+  app.get('/api/auth/config',async()=>({mock,oidc:!!(process.env.TELEGRAM_LOGIN_CLIENT_ID&&process.env.TELEGRAM_LOGIN_CLIENT_SECRET)}));
+  app.post('/api/auth/telegram',{config:{rateLimit:{max:mock?300:30,timeWindow:'1 minute'}}},async(req,reply)=>{
     const input=z.object({initData:z.string().max(20000).optional(),demoId:z.string().max(64).optional()}).strict().parse(req.body||{});let userId:string;
     if(input.initData){
       if(!process.env.TELEGRAM_BOT_TOKEN)fail('Авторизация Telegram пока не настроена',503);
-      const u=validateTelegram(input.initData!,process.env.TELEGRAM_BOT_TOKEN!);const existing=db.get('SELECT id FROM users WHERE telegram_id=?',String(u.id));
-      userId=existing?.id||db.tx(()=>{const uid=id();db.run('INSERT INTO users VALUES (?,?,?,?,?,?)',uid,String(u.id),u.username||`player${u.id}`,'PLAYER',0,now());db.run('INSERT INTO profiles VALUES (?,?,?,?,?,?,?,?)',uid,[u.first_name,u.last_name].filter(Boolean).join(' '),null,u.photo_url?.startsWith('https://')?u.photo_url:null,'','','',now());db.run('INSERT INTO ratings(user_id,rating,highest_rating) VALUES (?,100,100)',uid);credit(db,uid,100,'BONUS','registration','Добро пожаловать в пинг таблет');return uid;});
-      db.tx(()=>{
-        db.run('UPDATE users SET username=? WHERE id=?',u.username||`player${u.id}`,userId);
-        if(u.username?.toLowerCase()==='disvolo')db.run("INSERT OR IGNORE INTO config(key,value) VALUES ('superadmin_telegram_id',?)",String(u.id));
-        if(db.get("SELECT value FROM config WHERE key='superadmin_telegram_id'")?.value===String(u.id))db.run("UPDATE users SET role='ADMIN',banned=0 WHERE id=?",userId);
-      });
+      const u=validateTelegram(input.initData!,process.env.TELEGRAM_BOT_TOKEN!);userId=upsertTelegram(db,u);
     }else{if(!mock)fail('Открой пинг таблет внутри Telegram, чтобы войти',401);userId=input.demoId||'alex';if(!db.get("SELECT id FROM users WHERE id=? AND telegram_id LIKE 'demo-%'",userId))fail('Демо-игрок не найден',404);}
     if(db.get('SELECT banned FROM users WHERE id=?',userId)?.banned)fail('Этот аккаунт заблокирован',403);
-    const token=app.jwt.sign({sub:userId},{expiresIn:'12h'});reply.setCookie('ping_session',token,{httpOnly:true,sameSite:'strict',secure:process.env.APP_ENV==='production',path:'/',maxAge:43200});return {ok:true,token};
+    return issueSession(app,db,reply,userId);
   });
-  app.post('/api/auth/logout',async(_req,reply)=>{reply.clearCookie('ping_session',{path:'/'});return {ok:true};});
+  app.post('/api/auth/logout',async(req,reply)=>{const raw=req.cookies.ping_refresh;if(raw)db.run('DELETE FROM web_sessions WHERE hash=?',createHash('sha256').update(raw).digest('hex'));try{await req.jwtVerify({onlyCookie:!req.headers.authorization});const sid=(req.user as any).sid;if(sid)db.run('DELETE FROM web_sessions WHERE hash=?',sid);}catch{}reply.clearCookie('ping_session',{path:'/'});reply.clearCookie('ping_refresh',{path:'/api/auth'});return {ok:true};});
   app.get('/api/auth/demo-users',async()=>{if(!mock)fail('Not found',404);return db.all("SELECT u.id,p.display_name,u.role FROM users u JOIN profiles p ON p.user_id=u.id WHERE telegram_id LIKE 'demo-%' ORDER BY u.id='alex' DESC,p.display_name");});
 }

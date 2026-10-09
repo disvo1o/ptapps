@@ -5,7 +5,9 @@ type CacheEntry={data:any;version:number;updated:number};
 const cache=new Map<string,CacheEntry>();
 let generation=0;
 export function setSessionToken(token:string|null){sessionToken=token;generation++;cache.clear();}
-export async function api(path:string,options:RequestInit={}){const response=await fetch('/api'+path,{...options,credentials:'include',headers:{...(sessionToken?{Authorization:`Bearer ${sessionToken}`} :{}),...(options.body?{'Content-Type':'application/json'}:{}),...options.headers}});let data;try{data=await response.json();}catch{throw new Error('Не удалось подключиться. Попробуйте ещё раз.');}if(!response.ok)throw new Error(data.error||'Не удалось выполнить действие. Попробуйте ещё раз.');return data;}
+let refreshing:Promise<void>|null=null;
+export async function api(path:string,options:RequestInit={},retried=false):Promise<any>{const response=await fetch('/api'+path,{...options,credentials:'include',headers:{...(sessionToken?{Authorization:`Bearer ${sessionToken}`} :{}),...(options.body?{'Content-Type':'application/json'}:{}),...options.headers}});if(response.status===401&&!path.startsWith('/auth/')&&!retried){if(!refreshing)refreshing=fetch('/api/auth/refresh',{method:'POST',credentials:'include'}).then(async r=>{if(!r.ok)throw Error('Сессия завершена. Открой приложение заново.');sessionToken=(await r.json()).token;}).finally(()=>{refreshing=null;});await refreshing;return api(path,options,true);}let data;try{data=await response.json();}catch{throw new Error('Не удалось подключиться. Попробуйте ещё раз.');}if(!response.ok)throw new Error(data.error||'Не удалось выполнить действие. Попробуйте ещё раз.');return data;}
+
 export const post=(path:string,body:unknown={})=>api(path,{method:'POST',body:JSON.stringify(body)});
 export const patch=(path:string,body:unknown)=>api(path,{method:'PATCH',body:JSON.stringify(body)});
 // Keep the last screen while revalidating, and never share cached data across accounts.
