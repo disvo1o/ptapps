@@ -1,47 +1,31 @@
 import { test, expect } from '@playwright/test';
 test.beforeEach(async({page})=>{await page.route('https://telegram.org/**',r=>r.abort());});
 
-test('secondary destinations, player details and rating explanation remain reachable', async ({page}) => {
- await page.goto('/profile');
- for(const label of ['Карточки','Понгсы','Турниры','Статистика','Достижения']) {
-  await expect(page.locator('.profile-shortcuts').getByRole('link',{name:label,exact:true})).toBeVisible();
- }
- await page.getByRole('link',{name:'Достижения',exact:true}).click();
- await expect(page.locator('.achievement').first()).toBeVisible();
- await page.locator('.bottom-nav').getByRole('link',{name:'Профиль',exact:true}).click();
- await page.getByRole('link',{name:'Статистика',exact:true}).click();
- await expect(page.getByRole('img',{name:/История рейтинга/})).toBeVisible();
- await page.locator('.rating-rules summary').click();
- await expect(page.locator('.rating-rules')).toContainText('неопределённость');
- await page.evaluate(path=>{history.pushState({},'',path);dispatchEvent(new PopStateEvent('popstate'));},'/collection');
- await page.locator('.album-grid .player-card').first().click();
- const dialog=page.getByRole('dialog');await expect(dialog).toHaveAccessibleName(/\S/);
- await dialog.getByRole('link',{name:'Профиль игрока'}).click();
- await expect(page.locator('.profile-identity')).toBeVisible();
- await expect(page.getByText('Матчи вместе',{exact:true})).toBeVisible();
+test('profile contains only allowed shortcuts, statistics only three metrics, and cards open profiles',async({page})=>{
+ await page.goto('/profile');await expect(page.locator('.profile-shortcuts a')).toHaveText(['На рабочий экран','Карточки','Статистика']);
+ await page.getByRole('link',{name:'Статистика',exact:true}).click();await expect(page.locator('.stat')).toHaveCount(3);await expect(page.locator('.stat>span')).toHaveText(['Количество турниров','Победы','Победы в турнирах']);await expect(page.getByText('Почему изменился рейтинг')).toHaveCount(0);
+ for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);}
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:'test-results/cleanup-statistics.png',fullPage:true});
+ await page.goto('/collection');await page.locator('.album-grid .player-card').first().click();await page.getByRole('dialog').getByRole('link',{name:'Профиль игрока'}).click();await expect(page.locator('.profile-identity')).toBeVisible();
+ await page.goto('/profile');await expect(page.locator('.profile-shortcuts')).toBeVisible();await page.locator('.splash-overlay').waitFor({state:'hidden'});await page.screenshot({path:'test-results/cleanup-profile.png',fullPage:true});
 });
 
-test('admin points adjustment, search and role editor preserve their actions', async ({page}) => {
+test('admin access, search and role editor preserve their actions', async ({page}) => {
  await page.goto('/');await page.getByRole('button',{name:'Демо'}).click();
  await page.locator('.demo-user').filter({hasText:'Администратор'}).click();
  await expect(page.getByRole('heading',{name:'Привет, Sam.'})).toBeVisible();
  await page.locator('.bottom-nav').getByRole('link',{name:'Профиль',exact:true}).click();
  await page.locator('.profile-shortcuts').getByRole('link',{name:'Управление',exact:true}).click();
- await expect(page.locator('.tabs button')).toHaveCount(10);
+ await expect(page.locator('.tabs button')).toHaveCount(8);
  await page.getByLabel('Поиск записей').fill('Luna');
  await page.getByRole('button',{name:'Управлять',exact:true}).click();
  await expect(page.getByRole('dialog').getByRole('combobox',{name:'Роль',exact:true})).toBeVisible();
  await expect(page.getByRole('dialog').getByRole('combobox',{name:'Доступ',exact:true})).toBeVisible();
  await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
  await page.getByLabel('Поиск записей').fill('');
- await page.getByRole('button',{name:'Понгсы',exact:true}).click();
- await page.getByRole('button',{name:'Начислить понгсы'}).click();
- await page.getByRole('combobox',{name:'Игрок',exact:true}).selectOption('player-3');
- await page.getByLabel('Количество понгсов').fill('25');
- const reason='Проверка интерфейса '+Date.now();await page.getByLabel('Причина').fill(reason);
- await page.getByRole('button',{name:'Начислить',exact:true}).click();
- await expect(page.getByRole('dialog')).toHaveCount(0);
- await expect(page.locator('.admin-records')).toContainText(reason);
+ await expect(page.getByRole('button',{name:'Понгсы',exact:true})).toHaveCount(0);
+ await page.goto('/profile');await expect(page.locator('.profile-shortcuts a')).toHaveText(['На рабочий экран','Карточки','Статистика','Управление']);
+
 });
 
 test('test tournament keeps sixteen entrants, swaps and winner selection', async ({page}) => {
@@ -64,7 +48,7 @@ test('test tournament keeps sixteen entrants, swaps and winner selection', async
 test('empty, error and camera fallback retain useful actions', async ({page}) => {
  await page.route('**/api/me/stickers',route=>route.fulfill({json:[]}));
  await page.goto('/collection');await expect(page.getByText('Игроки скоро появятся')).toBeVisible();
- await expect(page.getByRole('link',{name:'Открыть пак'})).toBeVisible();
+ await expect(page.getByRole('link',{name:'Открыть пак'})).toHaveCount(0);
  let fail=true;
  await page.route('**/api/leaderboard?*',async route=>{
   if(fail){await route.fulfill({status:503,json:{error:'Проверка состояния ошибки'}});return;}

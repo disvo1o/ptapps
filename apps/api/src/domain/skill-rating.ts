@@ -1,4 +1,4 @@
-import { Store, id, now, audit, fail, requireRow, notify } from '../db.js';
+import { Store, id, now, audit, fail, requireRow } from '../db.js';
 export const priors:Record<number,number>={1:900,2:1200,3:1500};
 export const ratingModel={name:'Club Bayesian v1',initialRating:1200,levels:priors,initialDeviation:300,minDeviation:60,floor:400,maxChangePerMatch:80};
 type Skill={rating:number;deviation:number;games:number};
@@ -23,13 +23,16 @@ export function setInitialLevel(db:Store,actor:string,user:string,level:number){
  audit(db,actor,'RATING_LEVEL',user,{level,previous:r.rating,rating});return {rating,level};
 }
 export function rateFriendly(db:Store,m:any){
- const a=db.get('SELECT * FROM ratings WHERE user_id=?',m.player_a),b=db.get('SELECT * FROM ratings WHERE user_id=?',m.player_b);
- const deltas=[];
- for(const [uid,own,other,win] of [[m.player_a,a,b,m.score_a>m.score_b],[m.player_b,b,a,m.score_b>m.score_a]] as const){
-  const next=updateSkill({rating:own.friendly_rating,deviation:own.friendly_deviation,games:own.friendly_games},{rating:other.friendly_rating,deviation:other.friendly_deviation,win,match_id:m.id});
-  db.run('UPDATE ratings SET friendly_rating=?,friendly_deviation=?,friendly_games=friendly_games+1,friendly_wins=friendly_wins+? WHERE user_id=?',next.rating,next.deviation,win?1:0,uid);
-  db.run('INSERT INTO rating_history(id,user_id,rating,match_id,created_at,system,previous_rating,rating_change,uncertainty_before,uncertainty_after,details) VALUES (?,?,?,?,?,?,?,?,?,?,?)',id(),uid,next.rating,m.id,now(),'FRIENDLY',own.friendly_rating,next.delta,own.friendly_deviation,next.deviation,JSON.stringify({opponent_rating:other.friendly_rating,expected:next.expected,actual:win?1:0,model:ratingModel.name}));
-  notify(db,uid,'FRIENDLY',`Товарищеский матч подтверждён · ${next.delta>=0?'+':''}${next.delta} к friendly-рейтингу`);deltas.push(next.delta);
+ const previous=db.all("SELECT user_id,rating_change FROM rating_history WHERE match_id=? AND system='FRIENDLY'",m.id);
+ if(previous.length===2)return [m.player_a,m.player_b].map(uid=>previous.find(h=>h.user_id===uid)!.rating_change);
+ if(previous.length)fail('Неполная история результата матча',409);
+ if(m.score_a===m.score_b)fail('Для этого матча нужен победитель',409);
+ const deltas:number[]=[];
+ for(const [uid,win] of [[m.player_a,m.score_a>m.score_b],[m.player_b,m.score_b>m.score_a]] as const){
+  const own=requireRow(db.get('SELECT * FROM ratings WHERE user_id=?',uid)),delta=win?10:-10;
+  db.run('UPDATE ratings SET friendly_rating=friendly_rating+?,friendly_games=friendly_games+1,friendly_wins=friendly_wins+? WHERE user_id=?',delta,win?1:0,uid);
+  db.run('INSERT INTO rating_history(id,user_id,rating,match_id,created_at,system,previous_rating,rating_change,details) VALUES (?,?,?,?,?,?,?,?,?)',id(),uid,own.friendly_rating+delta,m.id,now(),'FRIENDLY',own.friendly_rating,delta,JSON.stringify({actual:win?1:0,model:'Friendly fixed 10'}));
+  deltas.push(delta);
  }
  return deltas;
 }
@@ -47,7 +50,7 @@ export function rateTournament(db:Store,tid:string){
    db.run('INSERT INTO rating_history(id,user_id,season_id,rating,match_id,created_at,system,previous_rating,rating_change,uncertainty_before,uncertainty_after,tournament_id,details) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',id(),uid,t.season_id,next.rating,m.id,now(),'TOURNAMENT',prev.rating,next.delta,prev.deviation,next.deviation,tid,JSON.stringify({opponent_id:opponent,opponent_rating:other.rating,opponent_uncertainty:other.rating_deviation,expected:next.expected,actual:m.winner===uid?1:0,round:m.round,tournament_wins:matches.filter(g=>g.winner===uid).length,exit_round:matches.find(g=>g.loser===uid)?.round||null,model:ratingModel.name}));
    db.run(`UPDATE matches SET ${m.player_a===uid?'rating_change_a':'rating_change_b'}=? WHERE id=?`,next.delta,m.id);
   }
-  if(counted){db.run('UPDATE ratings SET rating=?,rating_deviation=?,calibrated_games=?,highest_rating=MAX(highest_rating,?) WHERE user_id=?',state.rating,state.deviation,state.games,state.rating,uid);notify(db,uid,'RATING',`Турнир завершён · ${state.rating-old.rating>=0?'+':''}${state.rating-old.rating} к турнирному рейтингу`);}
+  if(counted){db.run('UPDATE ratings SET rating=?,rating_deviation=?,calibrated_games=?,highest_rating=MAX(highest_rating,?) WHERE user_id=?',state.rating,state.deviation,state.games,state.rating,uid);}
  }
  db.run('UPDATE tournaments SET rating_processed_at=? WHERE id=?',now(),tid);
 }

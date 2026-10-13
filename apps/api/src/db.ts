@@ -1,4 +1,3 @@
-import { russianMessage } from './russian.js';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -39,4 +38,3 @@ export const now=()=>new Date().toISOString();
 export const fail=(message:string,statusCode=400):never=>{throw Object.assign(new Error(message),{statusCode});};
 export function requireRow<T>(row:T,message='Not found'):NonNullable<T> { if(!row)fail(message,404); return row as NonNullable<T>; }
 export function audit(db:Store,actor:string|null,action:string,entity:string|null,detail:unknown){db.run('INSERT INTO admin_logs VALUES (?,?,?,?,?,?)',id(),actor,action,entity,JSON.stringify(detail),now());}
-export function notify(db:Store,user:string,type:string,message:string){db.run('INSERT INTO notifications(id,user_id,type,message,created_at) VALUES (?,?,?,?,?)',id(),user,type,russianMessage(message),now());}

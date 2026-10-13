@@ -1,9 +1,10 @@
+import { awardPlayerCard } from './cards.js';
 import { handicapCredit } from './resources.js';
 import { randomBytes, randomInt } from 'node:crypto';
-import { Store, id, now, fail, requireRow, audit, notify } from '../db.js';
+import { Store, id, now, fail, requireRow, audit } from '../db.js';
 import { settleMatch, validateScore } from './matches.js';
 import { rateTournament } from './skill-rating.js';
-import { credit, config, achievements } from './economy.js';
+import { achievements } from './economy.js';
 export const qrToken=()=>randomBytes(24).toString('base64url');
 export function organizer(db:Store,user:string,t:any){if(!(['ORGANIZER','ADMIN'].includes(db.get('SELECT role FROM users WHERE id=?',user)?.role))||(t.organizer_id!==user&&db.get('SELECT role FROM users WHERE id=?',user)?.role!=='ADMIN'))fail('Управлять турниром может только организатор или администратор',403);}
 export function joinTournament(db:Store,user:string,tournamentId:string,token?:string){return db.tx(()=>{
@@ -12,7 +13,7 @@ export function joinTournament(db:Store,user:string,tournamentId:string,token?:s
   if(token!==t.qr_token)fail('Для регистрации отсканируйте QR-код организатора',403);
   if(t.status!=='OPEN')fail('Регистрация закрыта',409);if(t.registration_deadline<now())fail('Срок регистрации истёк',409);
   const count=db.get('SELECT COUNT(*) n FROM tournament_players WHERE tournament_id=?',tournamentId).n;if(count>=t.max_players)fail('Турнир уже заполнен',409);
-  db.run('INSERT INTO tournament_players VALUES (?,?,?)',tournamentId,user,now());if(count+1>=t.max_players)db.run("UPDATE tournaments SET status='FULL' WHERE id=?",tournamentId);notify(db,user,'TOURNAMENT','Ты присоединился к турниру: '+t.title);return {joined:true};
+  db.run('INSERT INTO tournament_players VALUES (?,?,?)',tournamentId,user,now());if(count+1>=t.max_players)db.run("UPDATE tournaments SET status='FULL' WHERE id=?",tournamentId);return {joined:true};
 });}
 function advanceByes(db:Store,tournamentId:string){
   const rows=db.all('SELECT * FROM tournament_matches WHERE tournament_id=? ORDER BY round,position',tournamentId);const last=Math.max(...rows.map(r=>r.round));
@@ -75,10 +76,9 @@ export function startTournament(db:Store,user:string,tournamentId:string){return
   db.run("UPDATE tournaments SET status='LIVE',started_at=? WHERE id=?",now(),t.id);audit(db,user,'TOURNAMENT_START',t.id,{players:entrants.length,format:t.format});return {started:true};
 });}
 function finishTournament(db:Store,t:any,champion:string,podium:string[]){
-  db.run("UPDATE tournaments SET status='FINISHED',champion_id=?,finished_at=? WHERE id=?",champion,now(),t.id);if(t.is_test)return;rateTournament(db,t.id);const c=config(db);
+  db.run("UPDATE tournaments SET status='FINISHED',champion_id=?,finished_at=? WHERE id=?",champion,now(),t.id);if(t.is_test)return;rateTournament(db,t.id);
   for(const [index,uid] of [...new Set(podium)].entries())if(uid&&!db.get('SELECT 1 FROM player_preferences WHERE user_id=? AND is_guest=1',uid)){const place=index===0?1:index===1?2:3;handicapCredit(db,uid,place===1?2:1,`${place} место · ${t.title}`,`tournament:${t.id}`);}
-  for(const p of db.all('SELECT user_id FROM tournament_players WHERE tournament_id=? AND NOT EXISTS(SELECT 1 FROM player_preferences pp WHERE pp.user_id=tournament_players.user_id AND pp.is_guest=1)',t.id)){credit(db,p.user_id,c.tournamentParticipation,'TOURNAMENT',`${t.id}:participation`,'Участие в турнире');notify(db,p.user_id,'TOURNAMENT',`${t.title}: турнир завершён · +${c.tournamentParticipation} пинг поинтов`);}
-  if(!db.get('SELECT 1 FROM player_preferences WHERE user_id=? AND is_guest=1',champion)){credit(db,champion,c.tournamentWin,'TOURNAMENT',`${t.id}:winner`,'Победа в турнире');notify(db,champion,'TOURNAMENT',`Ты победил в турнире «${t.title}» · +${c.tournamentWin} пинг поинтов`);db.run('UPDATE ratings SET tournament_wins=tournament_wins+1 WHERE user_id=?',champion);}
+  if(!db.get('SELECT 1 FROM player_preferences WHERE user_id=? AND is_guest=1',champion)){db.run('UPDATE ratings SET tournament_wins=tournament_wins+1 WHERE user_id=?',champion);}
   for(const p of new Set(podium))if(p&&!db.get('SELECT 1 FROM player_preferences WHERE user_id=? AND is_guest=1',p))db.run('UPDATE ratings SET podiums=podiums+1 WHERE user_id=?',p);
   for(const p of db.all('SELECT user_id FROM tournament_players WHERE tournament_id=? AND NOT EXISTS(SELECT 1 FROM player_preferences pp WHERE pp.user_id=tournament_players.user_id AND pp.is_guest=1)',t.id))achievements(db,p.user_id);
 }
@@ -89,6 +89,7 @@ export function tournamentResult(db:Store,user:string,tournamentId:string,matchI
   if(t.status!=='LIVE'||m.status!=='READY')fail('Матч ещё не готов к результату',409);
   const game=id();db.run("INSERT INTO matches(id,player_a,player_b,score_a,score_b,status,tournament_id,created_at) VALUES (?,?,?,?,?,'PENDING',?,?)",game,m.player_a,m.player_b,a??(winnerId===m.player_a?1:0),b??(winnerId===m.player_b?1:0),t.id,now());const result=settleMatch(db,game);
   db.run("UPDATE tournament_matches SET status='DONE',winner=?,score_a=?,score_b=?,match_id=? WHERE id=?",result.winner,a??null,b??null,game,matchId);
+  awardPlayerCard(db,game);
   if(t.format==='SINGLE_ELIMINATION'){
     const next=db.get('SELECT id FROM tournament_matches WHERE tournament_id=? AND round=? AND position=?',t.id,m.round+1,Math.floor(m.position/2));
     if(next){db.run(`UPDATE tournament_matches SET ${m.position%2===0?'player_a':'player_b'}=? WHERE id=?`,result.winner,next.id);advanceByes(db,t.id);}

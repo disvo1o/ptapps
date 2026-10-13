@@ -1,11 +1,10 @@
 import { playerCards } from '../domain/cards.js';
-import { russianMessage } from '../russian.js';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { Store, now, fail } from '../db.js';
 import { current } from '../auth.js';
-import { player, playerSelect } from '../domain/players.js';
-import { balance, achievements, credit, config, openPack } from '../domain/economy.js';
+import { player, playerSelect, playerStatistics } from '../domain/players.js';
+import { config } from '../domain/economy.js';
 import { ratingModel } from '../domain/skill-rating.js';
 import { league } from '../domain/rating.js';
 import { confirmMatch, submitMatch } from '../domain/matches.js';
@@ -26,7 +25,7 @@ export function playerRoutes(app:FastifyInstance,db:Store){
   app.get('/api/players',async req=>{const q=pagination.extend({search:z.string().max(100).default('')}).parse(req.query);return db.all(`${playerSelect} WHERE u.banned=0 AND COALESCE(pp.is_guest,0)=0 AND (p.display_name LIKE ? OR u.username LIKE ?) ORDER BY r.rating DESC LIMIT ? OFFSET ?`,`%${q.search}%`,`%${q.search}%`,q.limit,q.offset).map(p=>({...p,league:league(p.rating,config(db))}));});
   app.get('/api/players/:id',async req=>{const uid=pathId(req.params);const other=player(db,uid);const matches=db.all("SELECT m.*,CASE WHEN m.tournament_id IS NULL THEN 1 ELSE EXISTS(SELECT 1 FROM tournament_matches tm WHERE tm.match_id=m.id AND tm.score_a IS NOT NULL) END score_recorded,pa.display_name name_a,pb.display_name name_b FROM matches m JOIN profiles pa ON pa.user_id=m.player_a JOIN profiles pb ON pb.user_id=m.player_b WHERE status='CONFIRMED' AND ((player_a=? AND player_b=?) OR (player_a=? AND player_b=?)) ORDER BY confirmed_at DESC",current(req),uid,uid,current(req));return {...other,head_to_head:{games:matches.length,wins:matches.filter(m=>m.winner===current(req)).length,losses:matches.filter(m=>m.loser===current(req)).length,matches:matches.slice(0,10)}};});
   app.get('/api/leaderboard',async req=>{const q=pagination.extend({metric:z.enum(['rating','friendly','streak','collectors']).default('rating')}).parse(req.query);const order={rating:'rating',friendly:'friendly_rating',streak:'streak',collectors:'collection'}[q.metric];return db.all(`SELECT u.id,p.display_name,p.avatar,p.profile_photo,r.rating,r.rating_deviation,r.friendly_rating,r.friendly_games,r.streak,(SELECT COUNT(DISTINCT s.owner_id) FROM user_stickers us JOIN stickers s ON s.id=us.sticker_id JOIN users owner ON owner.id=s.owner_id WHERE us.user_id=u.id AND us.quantity>0 AND s.owner_id IS NOT NULL AND owner.banned=0 AND (s.id LIKE 'card-%' OR s.id LIKE 'victory-%')) collection FROM users u JOIN profiles p ON p.user_id=u.id JOIN ratings r ON r.user_id=u.id WHERE u.banned=0 AND COALESCE((SELECT is_guest FROM player_preferences WHERE user_id=u.id),0)=0 ORDER BY ${order} DESC,${q.metric==='friendly'?'r.friendly_games':'r.rating'} DESC,u.id LIMIT ? OFFSET ?`,q.limit,q.offset).map((p,i)=>({...p,rank:q.offset+i+1,league:league(p.rating,config(db))}));});
-  app.get('/api/players/:id/statistics',async req=>{const uid=pathId(req.params);return {player:player(db,uid),history:db.all("SELECT * FROM rating_history WHERE user_id=? AND system<>'FRIENDLY' ORDER BY created_at",uid),best_win:db.get('SELECT p.display_name,r.rating FROM matches m JOIN profiles p ON p.user_id=m.loser JOIN ratings r ON r.user_id=m.loser WHERE m.winner=? AND m.tournament_id IS NOT NULL ORDER BY r.rating DESC LIMIT 1',uid)||null};});
+  app.get('/api/players/:id/statistics',async req=>{const uid=pathId(req.params),p=player(db,uid);return {player:{id:p.id,display_name:p.display_name},...playerStatistics(db,uid)};});
   app.get('/api/matches',async req=>{const q=pagination.extend({system:z.enum(['all','friendly']).default('all')}).parse(req.query);if(q.system==='friendly')return db.all("SELECT m.*,pa.display_name name_a,pb.display_name name_b FROM matches m JOIN profiles pa ON pa.user_id=m.player_a JOIN profiles pb ON pb.user_id=m.player_b WHERE m.tournament_id IS NULL AND m.rating_system='FRIENDLY' AND (player_a=? OR player_b=?) ORDER BY m.created_at DESC LIMIT ? OFFSET ?",current(req),current(req),q.limit,q.offset);return matchList(db,current(req),q.limit,q.offset);});
   app.post('/api/matches',async req=>{const p=scoreSchema.extend({opponent_id:entityId,request_key:keySchema}).strict().parse(req.body);return submitMatch(db,current(req),p.opponent_id,p.score_a,p.score_b,p.request_key);});
   app.post('/api/matches/:id/confirm',async req=>confirmMatch(db,current(req),pathId(req.params)));
@@ -34,12 +33,6 @@ export function playerRoutes(app:FastifyInstance,db:Store){
   app.post('/api/matches/:id/cancel',async req=>{const result=db.run("UPDATE matches SET status='CANCELLED' WHERE id=? AND player_a=? AND status='PENDING' AND tournament_id IS NULL",pathId(req.params),current(req));if(!result.changes)fail('Этот матч нельзя отменить',409);return {ok:true};});
   app.get('/api/stickers',async()=>playerCards(db));
   app.get('/api/me/stickers',async req=>playerCards(db,current(req)));
-  app.get('/api/packs',async()=>db.all('SELECT * FROM packs WHERE active=1 ORDER BY price').map(p=>({...p,probabilities:JSON.parse(p.probabilities)})));
-  app.post('/api/packs/:id/open',async req=>{const p=z.object({request_key:keySchema}).strict().parse(req.body);return openPack(db,current(req),pathId(req.params),p.request_key);});
-  app.get('/api/me/pingpoints',async req=>{const q=pagination.parse(req.query);return {balance:balance(db,current(req)),transactions:db.all('SELECT * FROM pingpoint_transactions WHERE user_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?',current(req),q.limit,q.offset).map(t=>({...t,description:russianMessage(t.description),type_label:russianMessage(t.type)}))};});
-  app.post('/api/me/daily',async req=>db.tx(()=>{const added=credit(db,current(req),config(db).dailyActivity,'BONUS',`daily:${now().slice(0,10)}`,'Ежедневная разминка');achievements(db,current(req));return {claimed:added,balance:balance(db,current(req))};}));
   app.get('/api/me/achievements',async req=>db.all('SELECT a.*,ua.created_at unlocked_at FROM achievements a LEFT JOIN user_achievements ua ON ua.achievement_id=a.id AND ua.user_id=? ORDER BY ua.created_at DESC,a.threshold',current(req)));
-  app.get('/api/me/notifications',async req=>db.all('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 50',current(req)).map(n=>({...n,message:russianMessage(n.message)})));
-  app.post('/api/me/notifications/read',async req=>{db.run('UPDATE notifications SET read_at=? WHERE user_id=? AND read_at IS NULL',now(),current(req));return {ok:true};});
   app.get('/api/seasons/current',async()=>db.get("SELECT * FROM seasons WHERE status='CURRENT'")||null);
 }

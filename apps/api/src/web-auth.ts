@@ -4,7 +4,6 @@ import {z} from 'zod';
 import type {FastifyInstance,FastifyReply} from 'fastify';
 import {Store,id,now,fail} from './db.js';
 import {current} from './auth.js';
-import {credit} from './domain/economy.js';
 const hash=(s:string)=>createHash('sha256').update(s).digest('hex');
 const secret=()=>randomBytes(32).toString('base64url');
 const secure=()=>process.env.APP_ENV==='production';
@@ -18,7 +17,7 @@ export function issueSession(app:FastifyInstance,db:Store,reply:FastifyReply,use
 }
 export function upsertTelegram(db:Store,u:{id:number;first_name:string;last_name?:string;username?:string;photo_url?:string}){return db.tx(()=>{
  let uid=db.get('SELECT id FROM users WHERE telegram_id=?',String(u.id))?.id;
- if(!uid){uid=id();db.run('INSERT INTO users VALUES (?,?,?,?,?,?)',uid,String(u.id),u.username||`player${u.id}`,'PLAYER',0,now());db.run('INSERT INTO profiles VALUES (?,?,?,?,?,?,?,?)',uid,[u.first_name,u.last_name].filter(Boolean).join(' '),null,u.photo_url?.startsWith('https://')?u.photo_url:null,'','','',now());db.run('INSERT INTO ratings(user_id,rating,highest_rating) VALUES (?,100,100)',uid);credit(db,uid,100,'BONUS','registration','Добро пожаловать в пинг таблет');}
+ if(!uid){uid=id();db.run('INSERT INTO users VALUES (?,?,?,?,?,?)',uid,String(u.id),u.username||`player${u.id}`,'PLAYER',0,now());db.run('INSERT INTO profiles VALUES (?,?,?,?,?,?,?,?)',uid,[u.first_name,u.last_name].filter(Boolean).join(' '),null,u.photo_url?.startsWith('https://')?u.photo_url:null,'','','',now());db.run('INSERT INTO ratings(user_id,rating,highest_rating) VALUES (?,100,100)',uid);}
  db.run('UPDATE users SET username=? WHERE id=?',u.username||`player${u.id}`,uid);
  if(u.username?.toLowerCase()==='disvolo')db.run("INSERT OR IGNORE INTO config VALUES ('superadmin_telegram_id',?)",String(u.id));
  if(db.get("SELECT value FROM config WHERE key='superadmin_telegram_id'")?.value===String(u.id))db.run("UPDATE users SET role='ADMIN',banned=0 WHERE id=?",uid);

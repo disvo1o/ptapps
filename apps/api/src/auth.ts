@@ -4,7 +4,6 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { Store, id, now, fail } from './db.js';
-import { credit } from './domain/economy.js';
 export function validateTelegram(initData:string,token:string,clock=Date.now()){
   const params=new URLSearchParams(initData);const hash=params.get('hash');
   if([...params.keys()].length!==new Set(params.keys()).size)fail('Не удалось проверить подпись Telegram',401);

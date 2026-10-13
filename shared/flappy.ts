@@ -1,4 +1,4 @@
-// Fixed-step deterministic physics, replayed on the server before any reward.
+// Fixed-step deterministic physics, replayed on the server before saving a score.
 export const GAME={width:360,height:480,fps:60,maxFrames:10800,gap:148,speed:2.2,radius:10,gravity:.25,flap:-4.2,spacing:180};
 export type Flight={frame:number,y:number,velocity:number,score:number,alive:boolean};
 export const initialFlight=():Flight=>({frame:0,y:240,velocity:0,score:0,alive:true});
@@ -6,4 +6,3 @@ export function gate(seed:number,index:number){let n=(seed+Math.imul(index+1,265
 export function obstacles(seed:number,frame:number){const start=Math.max(0,Math.floor((frame*GAME.speed-440)/GAME.spacing));return Array.from({length:4},(_,n)=>{const index=start+n;return {index,x:440+index*GAME.spacing-frame*GAME.speed,center:gate(seed,index)};});}
 export function stepFlight(s:Flight,flap:boolean,seed:number):Flight{if(!s.alive)return s;const frame=s.frame+1,velocity=(flap?GAME.flap:s.velocity)+GAME.gravity,y=s.y+velocity;let alive=y>GAME.radius&&y<GAME.height-GAME.radius,score=s.score;for(const o of obstacles(seed,frame)){if(o.x<90+GAME.radius&&o.x+34>90-GAME.radius&&(y-GAME.radius<o.center-GAME.gap/2||y+GAME.radius>o.center+GAME.gap/2))alive=false;if(o.x+34<90&&o.x+34+GAME.speed>=90)score++;}return {frame,y,velocity,score,alive:alive&&frame<GAME.maxFrames};}
 export function replayFlight(seed:number,inputs:number[],frames:number){let state=initialFlight(),at=0;for(let f=1;f<=frames;f++){state=stepFlight(state,inputs[at]===f,seed);if(inputs[at]===f)at++;if(!state.alive){if(f!==frames)throw new Error('Лишние кадры после окончания игры');break;}}if(state.alive)throw new Error('Игра ещё не закончена');return state;}
-export const gameReward=(score:number)=>score>=20?30:score>=10?15:score>=3?5:0;
